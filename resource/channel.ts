@@ -1,7 +1,7 @@
 import { 
     Snowflake,
     ISO8601
-} from "../constants.ts";
+} from "../deps.ts";
 
 export class Channel
 {
