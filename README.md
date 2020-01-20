@@ -1,5 +1,8 @@
 ![DinoCord](banner.png)
 
+## WARNING!
+This is by no means ready, do not use it at all. You probably will rate limit yourself.
+
 ## About
 A Discord API Library for Deno
 
