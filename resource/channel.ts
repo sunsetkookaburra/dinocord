@@ -6,8 +6,8 @@ import {
 
 export class Channel
 {
-    public readonly id: Snowflake;
-    public readonly type: number;
+    readonly id:    Snowflake;
+    readonly type:  number;
 }
 
 class TextChannel extends Channel

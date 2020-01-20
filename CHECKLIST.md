@@ -1,4 +1,5 @@
 # API Operations Checklist
+- [ ] Rate Limiting
 ## HTTP REST
 #### Client:
 - [ ] Edit Profile
@@ -79,7 +80,7 @@
 - [ ] Audit Log Change Key
 ---
 - [ ] Channel
-- [ ] Channel Types
+- [x] Channel Types
 - [ ] Message
 - [ ] Message Types
 - [ ] Message Activity
@@ -122,8 +123,8 @@
 - [ ] Invite Metadata
 ---
 - [ ] User
-- [ ] User Flags
-- [ ] Premium Types
+- [x] User Flags
+- [x] Premium Types
 - [ ] Connection
 - [ ] Visibility Types
 ---
@@ -182,7 +183,7 @@
 - [ ] JSON Error Response
 
 ## Opcodes / Status Codes
-- [ ] Gateway Opcodes
+- [x] Gateway Opcodes
 - [ ] Gateway Close Event Codes
 - [ ] Voice Opcodes
 - [ ] Voice Close Event Codes

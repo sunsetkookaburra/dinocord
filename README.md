@@ -8,7 +8,7 @@ A Discord API Library for Deno
 
 ## Example
 ```js
-import { createClient } from "https://raw.githubusercontent.com/sunsetkookaburra/dinocord/master/mod.ts";
+import { createClient } from "https://deno.land/x/dinocord/mod.ts";
 
 const client = createClient(Deno.args[0]);
 
