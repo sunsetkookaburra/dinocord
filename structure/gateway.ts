@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 /** Discord Gateway Opcodes */
 export enum GatewayOpcode
 {

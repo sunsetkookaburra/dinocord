@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 /** Library related metadata */
 export const LibraryMeta = {
 	url: "https://github.com/sunsetkookaburra",
