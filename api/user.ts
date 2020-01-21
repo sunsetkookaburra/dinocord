@@ -112,23 +112,28 @@ export interface ConnectionObject {
 	visibility:		VisibilityTypes;
 }
 
+//@public_api
+/** A Discord user. */
 export class User
 {
 	/** The User's ID. */
-	public readonly id: Snowflake;
+	readonly id: Snowflake;
+
 	/** The name of the user, e.g. `"name"#1234`. */
-	public readonly name: string;
+	readonly name: string;
+
 	/** The tag number of the user, e.g. `name#"1234"`. */
-	public readonly tag: string;
-	/** List of guilds to which the user belongs. */
-	public readonly guilds //:Guild[];
-	constructor( userData: UserObject )
-	{
-		this.id 	= userData.id;
-		this.name 	= userData.username;
-		this.tag 	= userData.discriminator;
+	readonly tag: string;
+
+	constructor( userInit: UserObject ) {
+		this.id 	= userInit.id;
+		this.name 	= userInit.username;
+		this.tag 	= userInit.discriminator;
+
+		this[Deno.symbols.customInspect]; // Reference so typescript outputs the property.
 	}
-	[Deno.symbols.customInspect](){
+
+	private [Deno.symbols.customInspect]() {
 		return this.name + '#' + this.tag;
 	}
 }

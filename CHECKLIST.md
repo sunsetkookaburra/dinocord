@@ -3,6 +3,8 @@
 ## HTTP REST
 #### Client:
 - [ ] Edit Profile
+- [x] Retrieve Client's Guild List
+- [x] Retrieve Client's User Info
 #### Channels:
 - [ ] Send Typing
 - [ ] Create

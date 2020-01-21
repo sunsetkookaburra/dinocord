@@ -12,7 +12,7 @@ import { createClient } from 'https://deno.land/x/dinocord/mod.ts';
 
 const client = await createClient('token');
 
-console.log('Bot Connected:', client.user);
+console.log('Bot Connected:', client);
 
 for await (const event of client) {
     if (event.type === 'message') {

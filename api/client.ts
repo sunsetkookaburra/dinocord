@@ -1,48 +1,64 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 //import {  } from "../deps.ts";
-import { DiscordHTTPClient, Route, ResourcePool, HTTPCode } from "./net.ts";
+import { NetworkHandler } from "./net.ts";
 import { User, UserObject } from "./user.ts";
-import { BucketPool } from "./bucket.ts";
 import { Message } from "./message.ts";
+import { Snowflake } from "./snowflake.ts";
+import { Guild, GuildObject, GuildMap } from "./guild.ts";
 
+//@public_api
 type ClientEvent = 
 	(Message & { type: "message" }) |
 	({ type: "" });
 
-class Client
+//@public_api
+class Client extends User
 {
-	readonly user: User;
-	private _bucketPool: BucketPool;
-	private _httpClient: DiscordHTTPClient;
-	private _resPool: ResourcePool;
+	/** List of guilds to which the user belongs. */
+	readonly guilds: GuildMap;
+	
+	private net: NetworkHandler;
 
-	constructor( httpClient: DiscordHTTPClient, userData: UserObject ){
-		this.user = new User(userData);
-		this._bucketPool = new BucketPool();
-		this._httpClient = httpClient;
-		this._resPool = new ResourcePool();
+	constructor(userInit: UserObject, networkHandler: NetworkHandler, guilds: GuildMap ){
+		super(userInit);
+		this.guilds = guilds;
+		this.net  = networkHandler;
+
+		this[Symbol.asyncIterator]; // reference so typescript outputs the property.
 	}
 
 	/** Event Listener */
-	async*[Symbol.asyncIterator](): AsyncGenerator<ClientEvent, void, unknown> {
-		
+	private async*[Symbol.asyncIterator](): AsyncGenerator<ClientEvent, void, unknown> {
+		return; // remove and reuse later as client.exit();
 	};
+
+	static async getUserData( net: NetworkHandler ){
+		return net.http.requestJson<UserObject>('GET', '/users/@me')
+	}
+	
+	static async getUserGuild( net: NetworkHandler ){
+		const guilds: GuildMap = new Map();
+		const userGuildsIn = await net.http.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
+		for (let i = 0; i < userGuildsIn.length; i++) {
+			guilds.set(userGuildsIn[i].id, new Guild(userGuildsIn[i]));
+		}
+		return guilds;
+	}
 }
 
+//@public_api
 export async function createClient( token: string )
 {
+	const net = new NetworkHandler( token );
+
 	// Run a "Log-In" to get details and verify token.
-	const httpClient = new DiscordHTTPClient(token);
-	const route = new Route("GET", "/users/@me");
-	const result = await httpClient.request(route);
+	// Check user token. Will throw if invalid.
+	let userObj = await Client.getUserData(net);
 
-	// If the bot is unauthorised, e.g. token is invalid
-	if (result.status === HTTPCode.UNAUTHORISED)
-		throw new Error("Unauthorised.");
-	else if (result.status === HTTPCode.TOO_MANY_REQUESTS)
-		throw new Error("Damn! Rate limited.");
+	// Retrieve list of guilds to init from.
+	const guilds = await Client.getUserGuild(net);
 
-	return new Client(httpClient, await result.json());
+	return new Client(userObj, net, guilds);
 }
 
 /*

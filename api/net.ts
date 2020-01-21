@@ -2,6 +2,7 @@
 
 import { LibraryMeta } from "../deps.ts";
 import { Snowflake } from "./snowflake.ts";
+import { BucketPool } from "./bucket.ts";
 
 /** HTTP Methods */
 type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -42,8 +43,9 @@ const CDNTemplates = {
 	teamIcon:			"/team-icons/:teamId/:teamIcon.png"
 };
 
+// CONSIDER USING SETS HERE FOR EASY CHECKING
 /** Small array extension to check whether resources are taken, and also unlock resources. */
-export class ResourcePool {
+class ResourcePool {
 	/** A list of the resources currently locked. */
 	private resources: string[] = [];
 	/** Checks whether the resources are already in use. */
@@ -80,18 +82,21 @@ interface RouteOptions {
 /** Wrapper around REST API URLs. Ensure resources are shared 
  * 	and not used at the same time to allow Bucket / Rate
  * 	management. */
-export class Route {
+export class Route
+{
 	/** Formatted API Endpoint */
 	url: string;
-	private _res: string[];
-	constructor( public method: HTTPMethod, path: string, substitutions?: RouteOptions )
-	{
+
+	/** Resources required to use this path. */
+	readonly resources: string[];
+
+	constructor( public method: HTTPMethod, path: string, substitutions?: RouteOptions ) {
 		// Extract "Major Parameters" as resources.
-		this._res = /:channelId|:messageId|:webhookId/g.exec(path) || [];
+		this.resources = /:channelId|:messageId|:webhookId/g.exec(path) || [];
 
 		// Add current path as a resource.
-		this._res.push(path);
-		this._res.push(method);
+		this.resources.push(path);
+		this.resources.push(method);
 
 		// Substitue values e.g. :channelId => {SNOWFLAKE}
 		if (substitutions) {
@@ -104,15 +109,13 @@ export class Route {
 		// Set url to api endpoint + path.
 		this.url = Endpoint.api + path;
 	}
-	/** Resources required to use this path. */
-	resources(): string[] {
-		return this._res;
-	}
 }
 
-export class DiscordHTTPClient {
+class DiscordHTTPClient
+{
 	private _headers: Headers;
-	constructor( token: string ){
+
+	constructor( token: string ) {
 		this._headers = new Headers([
 			["Authorization", "Bot "+token],
 			["User-Agent", UserAgent],
@@ -120,11 +123,43 @@ export class DiscordHTTPClient {
 			["X-RateLimit-Precision", "millisecond"],
 		]);
 	}
+
 	/** Request from route endpoint. <T> is the type of object returned. */
-	request( route: Route ): Promise<Response> {
-		return fetch(route.url,{
+	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
+		const route = new Route(method, path, substitutions);
+		const r = await fetch(route.url,{
 			"method": route.method,
 			"headers": this._headers
 		});
-	};
+		if (r.status === HTTPCode.UNAUTHORISED)
+			throw new Error("Unauthorised.");
+		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
+			throw new Error("Damn! Rate limited.");
+		return r;
+	}
+
+	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
+		return await(await this.request(method, path, substitutions)).json() as T;
+	}
+}
+
+/** Websocket client */
+class DiscordWSClient {
+
+}
+
+export class NetworkHandler
+{
+	readonly http:		DiscordHTTPClient;
+	readonly ws:		DiscordWSClient;
+	readonly res:		ResourcePool;
+	readonly bucket:	BucketPool;
+
+	constructor( token: string )
+	{
+		this.http = new DiscordHTTPClient(token);
+		this.ws = new DiscordWSClient();
+		this.res = new ResourcePool();
+		this.bucket = new BucketPool();
+	}
 }
