@@ -1,7 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-import { Snowflake, ISO8601 } from "../deps.ts";
-
-// All data values used for network communications.
+import { ISO8601 } from "../deps.ts";
+import { Snowflake } from "./snowflake.ts";
 
 /** What type of user. */
 export enum UserFlags {
@@ -84,8 +83,7 @@ export interface IntegrationObject {
     synced_at:             ISO8601;
 }
 
-export enum VisibilityTypes
-{
+export enum VisibilityTypes {
 	/** Only the user can see. */
 	NONE		= 0,
 	/** Everyone can see. */
@@ -111,67 +109,23 @@ export interface ConnectionObject {
 	/** Whether presence updates show from the connection. */
 	show_activity:	boolean;
 	/** Whether the connection is visible. */
-	visibility:		number;
+	visibility:		VisibilityTypes;
 }
 
-export interface GuildObject {
-    id:Snowflake;
-    name:string;
-    icon:string | null;
-    splash:string | null;
-    owner:boolean | undefined;
-    ownerId:Snowflake;
-    permissions:number | undefined
-    region:string;
-    afkChannelId:Snowflake | null;
-    afkTimeout:number;
-    embedEnabled:boolean | undefined;
-    embedChannelId:Snowflake | undefined;
-    verificationLevel:number;
-    defaultMessageNotifications:number;
-    explicitContentFilter:number;
-    roles//: Role[];
-    emojis//: Emoji[];
-    features//: GuildFeature[];
-    mfaLevel:number;
-}
-
-/** What type of channel. */
-export enum ChannelTypes {
-	/** Guild Text Channel. */
-	TEXT		= 0,
-	/** Message Chat between users. */
-	DM				= 1,
-	/** Guild Voice Channel. */
-	VOICE 	= 2,
-	/** Group Chat. */
-	GROUP		= 3,
-	/** Guild Category. */
-	CATEGORY 	= 4,
-	/** Guild News Channel. */
-	NEWS		= 5,
-	/** Store Channel to sell games. */
-	STORE		= 6
-}
-
-/** JSON representation of a Discord Channel. */
-export interface ChannelObject {
-	id:						Snowflake;
-	type:					number;
-	guild_id:				Snowflake;
-	position:				number;
-	permission_overwrites?//:Overwrite[]
-	name?:					string;
-	topic?:					string;
-	nsfw?:					boolean
-	last_message_id:		Snowflake;
-	bitrate?:				number;
-	user_limit?:			number
-	rate_limit_per_user?:	number;
-	recipients?:			UserObject[]
-	icon?:					string;
-	owner_id?:				Snowflake;
-	application_id?:		Snowflake;
-	parent_id?:				Snowflake;
-	last_pin_timestamp?:	ISO8601;
+export class User
+{
+	/** The User's ID. */
+	public readonly id: Snowflake;
+	/** The name of the user, e.g. `"name"#1234`. */
+	public readonly name: string;
+	/** The tag number of the user, e.g. `name#"1234"`. */
+	public readonly tag: string;
+	/** List of guilds to which the user belongs. */
+	public readonly guilds //:Guild[];
+	constructor( userData: UserObject )
+	{
+		this.id 	= userData.id;
+		this.name 	= userData.username;
+		this.tag 	= userData.discriminator;
+	}
 }

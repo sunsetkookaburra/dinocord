@@ -18,4 +18,5 @@ client.guilds[0].leave();
 
 */
 
-export { createClient } from "./client.ts";
+export { createClient } from "./api/client.ts";
+export { Message } from "./api/message.ts";

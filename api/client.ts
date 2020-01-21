@@ -1,65 +1,51 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-import { 
-	Endpoint,
-	LibraryMeta,
-	DiscordError,
-	User,
-	UserObject,
-	GatewayOpcode,
-	GatewayPayload,
-	connectWebSocket,
-	Route,
-	BucketPool,
-	ResourcePool
-} from "./deps.ts";
+//import {  } from "../deps.ts";
+import { DiscordHTTPClient, Route, ResourcePool, HTTPCode } from "./net.ts";
+import { User, UserObject } from "./user.ts";
+import { BucketPool } from "./bucket.ts";
+import { Message } from "./message.ts";
+
+type ClientEvent = 
+	(Message & { type: "message" }) |
+	({ type: "" });
 
 class Client
 {
 	readonly user: User;
 	private _bucketPool: BucketPool;
+	private _httpClient: DiscordHTTPClient;
 	private _resPool: ResourcePool;
 
-	constructor( userData: UserObject ){
+	constructor( httpClient: DiscordHTTPClient, userData: UserObject ){
 		this.user = new User(userData);
 		this._bucketPool = new BucketPool();
+		this._httpClient = httpClient;
 		this._resPool = new ResourcePool();
 	}
 
 	/** Event Listener */
-	[Symbol.asyncIterator] = async function*(){
-		return 1;
-	}
-	
-	static async getUserData( token: string ): Promise<UserObject>
-	{
-		const r = await fetch(Endpoint.api+"/users/@me",{
-			"method": "GET",
-			"headers": new Headers([
-				["Authorization", "Bot "+token],
-				["User-Agent", "DiscordBot ("+LibraryMeta.url+", "+LibraryMeta.version+") Deno/"+String(Deno.version.deno)],
-				["Content-Type", "application/json"],
-				["X-RateLimit-Precision", "millisecond"],
-			])
-		});
-		//console.log("=============================");
-		//console.log(r.status);
-		//console.log(r.headers);
-		//console.log(JSON.stringify(await r.json()));
-		//console.log("=============================");
-
-		// If the bot is unauthorised, e.g. token is invalid
-		if (r.status === 401) throw new DiscordError("Unauthorised.");
-		else if (r.status === 429) throw new DiscordError("Damn! Rate limited.");
-		return await r.json() as UserObject;
-	} 
+	async*[Symbol.asyncIterator](): AsyncGenerator<ClientEvent, void, unknown> {
+		
+	};
 }
 
 export async function createClient( token: string )
 {
-	const ud = await Client.getUserData(token);
-	return new Client(ud);
+	// Run a "Log-In" to get details and verify token.
+	const httpClient = new DiscordHTTPClient(token);
+	const route = new Route("GET", "/users/@me");
+	const result = await httpClient.request(route);
+
+	// If the bot is unauthorised, e.g. token is invalid
+	if (result.status === HTTPCode.UNAUTHORISED)
+		throw new Error("Unauthorised.");
+	else if (result.status === HTTPCode.TOO_MANY_REQUESTS)
+		throw new Error("Damn! Rate limited.");
+
+	return new Client(httpClient, await result.json());
 }
 
+/*
 async function createSockClient( token: string )
 {
 	const sock = await connectWebSocket(Endpoint.gateway);
@@ -106,3 +92,4 @@ async function createSockClient( token: string )
 		}
 	}
 }
+*/
