@@ -33,12 +33,12 @@ class Client extends User
 	};
 
 	static async getUserData( net: NetworkHandler ){
-		return net.http.requestJson<UserObject>('GET', '/users/@me')
+		return net.requestJson<UserObject>('GET', '/users/@me')
 	}
 	
 	static async getUserGuild( net: NetworkHandler ){
 		const guilds: GuildMap = new Map();
-		const userGuildsIn = await net.http.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
+		const userGuildsIn = await net.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
 		for (let i = 0; i < userGuildsIn.length; i++) {
 			guilds.set(userGuildsIn[i].id, new Guild(userGuildsIn[i]));
 		}

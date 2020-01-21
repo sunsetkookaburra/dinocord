@@ -132,7 +132,7 @@ class DiscordHTTPClient
 			"headers": this._headers
 		});
 		if (r.status === HTTPCode.UNAUTHORISED)
-			throw new Error("Unauthorised.");
+			throw new Error("Unauthorised to: "+path);
 		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
 			throw new Error("Damn! Rate limited.");
 		return r;
@@ -150,10 +150,10 @@ class DiscordWSClient {
 
 export class NetworkHandler
 {
-	readonly http:		DiscordHTTPClient;
-	readonly ws:		DiscordWSClient;
-	readonly res:		ResourcePool;
-	readonly bucket:	BucketPool;
+	private http:	DiscordHTTPClient;
+	private ws:		DiscordWSClient;
+	private res:	ResourcePool;
+	private bucket:	BucketPool;
 
 	constructor( token: string )
 	{
@@ -162,4 +162,13 @@ export class NetworkHandler
 		this.res = new ResourcePool();
 		this.bucket = new BucketPool();
 	}
+	
+	request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
+		return this.http.request(method, path, substitutions);
+	}
+
+	requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
+		return this.http.requestJson(method, path, substitutions);
+	}
+
 }
