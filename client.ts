@@ -7,21 +7,30 @@ import {
 	UserObject,
 	GatewayOpcode,
 	GatewayPayload,
-	connectWebSocket
+	connectWebSocket,
+	Route,
+	BucketPool,
+	ResourcePool
 } from "./deps.ts";
 
 class Client
 {
-	public readonly user: User;
+	readonly user: User;
+	private _bucketPool: BucketPool;
+	private _resPool: ResourcePool;
+
 	constructor( userData: UserObject ){
 		this.user = new User(userData);
+		this._bucketPool = new BucketPool();
+		this._resPool = new ResourcePool();
 	}
+
 	/** Event Listener */
-	[Symbol.asyncIterator] = async function* main(){
+	[Symbol.asyncIterator] = async function*(){
 		return 1;
 	}
 	
-	public static async getUserData( token: string )
+	static async getUserData( token: string ): Promise<UserObject>
 	{
 		const r = await fetch(Endpoint.api+"/users/@me",{
 			"method": "GET",
@@ -32,14 +41,17 @@ class Client
 				["X-RateLimit-Precision", "millisecond"],
 			])
 		});
+		//console.log("=============================");
 		//console.log(r.status);
 		//console.log(r.headers);
 		//console.log(JSON.stringify(await r.json()));
+		//console.log("=============================");
+
 		// If the bot is unauthorised, e.g. token is invalid
 		if (r.status === 401) throw new DiscordError("Unauthorised.");
 		else if (r.status === 429) throw new DiscordError("Damn! Rate limited.");
 		return await r.json() as UserObject;
-	}
+	} 
 }
 
 export async function createClient( token: string )
@@ -48,7 +60,7 @@ export async function createClient( token: string )
 	return new Client(ud);
 }
 
-export async function createSockClient( token: string )
+async function createSockClient( token: string )
 {
 	const sock = await connectWebSocket(Endpoint.gateway);
 	let heartbeatInterval = 0;

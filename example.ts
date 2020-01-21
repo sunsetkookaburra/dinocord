@@ -1,6 +1,5 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 import { createClient } from "./mod.ts";
-import { createSockClient } from "./client.ts";
 
 window.onload = async()=>{
     //await createSockClient(Deno.env("TOKEN"));

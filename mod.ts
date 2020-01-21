@@ -18,4 +18,4 @@ client.guilds[0].leave();
 
 */
 
-export { createClient, createSockClient } from "./client.ts";
+export { createClient } from "./client.ts";

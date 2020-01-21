@@ -6,7 +6,6 @@ export const LibraryMeta = {
 }
 
 // discord defined special data-types
-export type Snowflake = string & { isSnowflake: true };
 export type ISO8601 = string & { isISO8601: true };
 
 export class DiscordError extends Error {}
@@ -20,13 +19,13 @@ export const Endpoint = {
 
 /** CDN Endpoint Templates */
 export const CDNTemplates = {
-	emoji:				"/emojis/${emojiId}.png",
-	guildIcon:			"/icons/${guildId}/${guildIcon}.png",
-	guildSplash:		"/splashes/${guildId}/${guildSplash}.png",
-	guildBanner:		"/splashes/${guildId}/${guildBanner}.png",
-	defaultUserAvatar:	"/embed/avatars/${userDiscriminator}.png",
-	userAvatar:			"/avatars/${userId}/${userAvatar}.png",
-	teamIcon:			"/team-icons/${teamId}/${teamIcon}.png"
+	emoji:				"/emojis/:emojiId.png",
+	guildIcon:			"/icons/:guildId/:guildIcon.png",
+	guildSplash:		"/splashes/:guildId/:guildSplash.png",
+	guildBanner:		"/splashes/:guildId/:guildBanner.png",
+	defaultUserAvatar:	"/embed/avatars/:userDiscriminator.png",
+	userAvatar:			"/avatars/:userId/:userAvatar.png",
+	teamIcon:			"/team-icons/:teamId/:teamIcon.png"
 };
 
 // channel types
@@ -34,4 +33,5 @@ enum ChannelTypes {
 
 };
 
-
+/** HTTP Methods */
+export type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";

@@ -19,3 +19,5 @@ for await (const msg of client) {
 
 ## API Checklist
 See how far along the implementation is [here](CHECKLIST.md).
+
+###### Est. 20th Jan 2020

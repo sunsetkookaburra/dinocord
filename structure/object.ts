@@ -1,8 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-import {
-    Snowflake,
-    ISO8601
-} from "../deps.ts";
+import { Snowflake, ISO8601 } from "../deps.ts";
+
+// All data values used for network communications.
 
 /** What type of user. */
 export enum UserFlags {
@@ -38,22 +37,33 @@ export enum PremiumTypes {
 	NITRO			= 2
 }
 
+/** User data object. */
 export interface UserObject {
+	/** ID of the user. */
 	id:				Snowflake;
+	/** User's name (not unique). */
 	username:		string;
+	/** User's discord tag. */
 	discriminator:	string;
+	/** Avatar hash */
 	avatar?:		string;
+	/** Is the user a bot? */
 	bot?:			boolean;
+	/** Is the user part of Discord Urgent Message System. */
 	system?:		boolean;
+	/** Whether the user has 2-factor authentication. */
 	mfa_enabled?:	boolean;
+	/** User's chosen language. */
 	locale?:		string;
+	/** Is the user's email verified. */
 	verified?:		boolean;
+	/** The user's email. */
 	email?:			string;
+	/** User account type flags. */
 	flags?:			UserFlags;
+	/** Type of nitro subscription that the user has. */
 	premium_type?:	PremiumTypes;
 }
-
-
 
 export interface IntegrationAccountObject {
     id:		string;
@@ -74,18 +84,35 @@ export interface IntegrationObject {
     synced_at:             ISO8601;
 }
 
-
-
-export interface ConnectionObject {
-	id:            string;
-	name:          string;
-	type:          string;
-	revoked:       boolean;
-	integrations:  IntegrationObject[];
-
+export enum VisibilityTypes
+{
+	/** Only the user can see. */
+	NONE		= 0,
+	/** Everyone can see. */
+	EVERYONE	= 1
 }
 
-
+/** JSON representation of a Connected Account. */
+export interface ConnectionObject {
+	/** Connected account id. */
+	id:				string;
+	/** The username of the connected account. */
+	name:			string;
+	/** The service connected (Steam, Twitch, Youtube, etc). */
+	type:			string;
+	/** Has the connected been revoked. */
+	revoked:		boolean;
+	/** Partial server integrations array. */
+	integrations:	IntegrationObject[];
+	/** Whether the connection is verified. */
+	verified:		boolean;
+	/** Whether the connection syncs with friends. */
+	friend_sync:	boolean;
+	/** Whether presence updates show from the connection. */
+	show_activity:	boolean;
+	/** Whether the connection is visible. */
+	visibility:		number;
+}
 
 export interface GuildObject {
     id:Snowflake;
@@ -109,8 +136,6 @@ export interface GuildObject {
     mfaLevel:number;
 }
 
-
-
 /** What type of channel. */
 export enum ChannelTypes {
 	/** Guild Text Channel. */
@@ -129,7 +154,7 @@ export enum ChannelTypes {
 	STORE		= 6
 }
 
-/** JSON representation of channels on Discord. */
+/** JSON representation of a Discord Channel. */
 export interface ChannelObject {
 	id:						Snowflake;
 	type:					number;
