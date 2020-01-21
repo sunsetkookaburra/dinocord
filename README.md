@@ -8,12 +8,16 @@ A Discord API Library for Deno
 
 ## Example
 ```js
-import { createClient } from "https://deno.land/x/dinocord/mod.ts";
+import { createClient } from 'https://deno.land/x/dinocord/mod.ts';
 
-const client = createClient(Deno.args[0]);
+const client = await createClient('token');
 
-for await (const msg of client) {
-    msg.reply("Why hello there.");
+console.log('Bot Connected:', client.user);
+
+for await (const event of client) {
+    if (event.type === 'message') {
+        event.reply('Hello!');
+    }
 }
 ```
 

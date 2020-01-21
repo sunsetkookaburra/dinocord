@@ -2,6 +2,12 @@
 
 type BucketID = string & {}
 
+type Integer = number & ProxyHandler<Number>;
+
+let hi: Integer;
+let ho = hi + 2;
+
+
 interface Bucket {
 	limit:		number;
 	remaining:	number;

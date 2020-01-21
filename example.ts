@@ -5,8 +5,8 @@ window.onload = async()=>
 {
     const client = await createClient(Deno.env("TOKEN"));
 
-    console.log("Bot Connected:", client.user.name+"#"+client.user.tag);
-    
+    console.log("Bot Connected:", client.user);
+
     for await (const e of client) {
         if (e.type === "message") {
 

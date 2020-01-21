@@ -87,17 +87,19 @@ export class Route {
 	constructor( public method: HTTPMethod, path: string, substitutions?: RouteOptions )
 	{
 		// Extract "Major Parameters" as resources.
-		this._res = /:channelId|:messageId|:webhookId/g.exec(path);
+		this._res = /:channelId|:messageId|:webhookId/g.exec(path) || [];
 
 		// Add current path as a resource.
 		this._res.push(path);
 		this._res.push(method);
 
 		// Substitue values e.g. :channelId => {SNOWFLAKE}
-		if (substitutions.channelId) path.replace(':channelId', substitutions.channelId);
-		if (substitutions.guildId) path.replace(':channelId', substitutions.guildId);
-		if (substitutions.userId) path.replace(':channelId', substitutions.userId);
-		if (substitutions.webhookId) path.replace(':channelId', substitutions.webhookId);
+		if (substitutions) {
+			if (substitutions.channelId) path.replace(':channelId', substitutions.channelId);
+			if (substitutions.guildId) path.replace(':channelId', substitutions.guildId);
+			if (substitutions.userId) path.replace(':channelId', substitutions.userId);
+			if (substitutions.webhookId) path.replace(':channelId', substitutions.webhookId);
+		}
 		
 		// Set url to api endpoint + path.
 		this.url = Endpoint.api + path;

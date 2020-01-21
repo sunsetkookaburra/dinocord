@@ -128,4 +128,7 @@ export class User
 		this.name 	= userData.username;
 		this.tag 	= userData.discriminator;
 	}
+	[Deno.symbols.customInspect](){
+		return this.name + '#' + this.tag;
+	}
 }
