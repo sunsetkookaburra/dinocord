@@ -22,7 +22,7 @@ for await (const event of client) {
 ```
 
 ## API Documentation
-Can be found [here](DOC.md). Currently is hand-generated.
+Can be found [here](doc.md). Currently is hand-generated.
 
 ## Short Term Checklist
 - [ ] `ClientGuild extends Guild` so that `guild.leave()` can happen for guilds the client is in.
