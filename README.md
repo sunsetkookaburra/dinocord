@@ -14,6 +14,7 @@ Spelling for library functions is in UK/AU English, hence the appearance of "col
 A Discord API Library for Deno
 
 ## Creating your first bot.
+Unfortunately this isn't working entirely *yet*, Websockets need to be implemented for the for-await events to work.
 ```js
 import { createClient } from 'https://deno.land/x/dinocord/mod.ts';
 

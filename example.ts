@@ -12,6 +12,8 @@ window.onload = async()=>
 		console.log(' +', guild.name);
 	}
 
+	//client.createObject('guild'); WIP
+
 	for await (const e of client) {
 		if (e.type === "message") {
 			

@@ -24,4 +24,3 @@ add createObject('ClassName', init: ClassNameObject) or a special Object for cre
 */
 
 export { createClient } from "./api/client.ts";
-// export { createObject } from "./api/create_object.ts";

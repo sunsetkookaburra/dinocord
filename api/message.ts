@@ -1,5 +1,12 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
+
+import { Snowflake } from './snowflake.ts';
+
+export interface MessageObject {
+
+}
+
 export class Message
 {
-    hi: 2;
+    id: Snowflake;
 }

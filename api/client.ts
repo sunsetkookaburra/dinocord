@@ -5,6 +5,7 @@ import { User, UserObject } from "./user.ts";
 import { Message } from "./message.ts";
 import { Snowflake } from "./snowflake.ts";
 import { Guild, GuildObject, GuildMap } from "./guild.ts";
+import { createObject, PublicObjectTypes } from './create_object.ts';
 
 //@public_api
 type ClientEvent = 
@@ -17,29 +18,34 @@ class Client extends User
 	/** List of guilds to which the user belongs. */
 	readonly guilds: GuildMap;
 	
-	private ctx: ClientContext;
+	private _ctx: ClientContext;
 
 	constructor(userInit: UserObject, clientContext: ClientContext, guilds: GuildMap ){
 		super(userInit);
 		this.guilds = guilds;
-		this.ctx = clientContext;
+		this._ctx = clientContext;
 
 		this[Symbol.asyncIterator]; // reference so typescript outputs the property.
 	}
 
 	//@public_api
+	createObject<T extends keyof PublicObjectTypes, I extends PublicObjectTypes[T][0]>( type: T, init: I ){
+		return createObject(this._ctx, type, init);
+	}
+
+	//@public_api
 	async getGuild( guildId: Snowflake ){
-		return new Guild(await this.ctx.requestJson<GuildObject>('GET', '/guilds/:guildId', { guildId } ));
+		return new Guild(await this._ctx.requestJson<GuildObject>('GET', '/guilds/:guildId', { guildId } ));
 	}
 
 	//@public_api
 	async leaveGuild( guild: Snowflake | Guild ){
 		if( guild instanceof Guild ){
-			await this.ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
+			await this._ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
 			this.guilds.delete(guild.id);
 		}
 		else {
-			await this.ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
+			await this._ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
 			this.guilds.delete(guild);
 		}
 	}
