@@ -8,10 +8,8 @@ window.onload = async()=>
 	
 	console.log("Bot Belongs To Guilds:");
 	for (const guild of client.guilds.values()) {
-		console.log(' - '+guild.name);
+		console.log(' +', guild.name);
 	}
-
-	//await client.getUserGuild(client);
 
 	for await (const e of client) {
 		if (e.type === "message") {

@@ -1,7 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
 import { LibraryMeta } from "../deps.ts";
-import { Snowflake } from "./snowflake.ts";
 import { BucketPool } from "./bucket.ts";
 
 /** HTTP Methods */
@@ -146,10 +145,7 @@ class ResourcePool extends Set<string> {
 
 /** Substitutions for route. */
 interface RouteOptions {
-	channelId?:	Snowflake;
-	guildId?:	Snowflake;
-	userId?:	Snowflake;
-	webhookId?:	Snowflake;
+	[key: string]: any;
 }
 
 /** Wrapper around REST API URLs. Ensure resources are shared 
@@ -175,11 +171,10 @@ export class Route
 		this.resources.push(method);
 
 		// Substitue values e.g. :channelId => {SNOWFLAKE}
-		if (substitutions) {
-			if (substitutions.channelId) path.replace(':channelId', substitutions.channelId);
-			if (substitutions.guildId) path.replace(':channelId', substitutions.guildId);
-			if (substitutions.userId) path.replace(':channelId', substitutions.userId);
-			if (substitutions.webhookId) path.replace(':channelId', substitutions.webhookId);
+		if (substitutions !== undefined) {
+			for( let k of Object.keys(substitutions) ){
+				path = path.replace(':'+k, Deno.inspect(substitutions[k]));
+			}
 		}
 		
 		// Set url to api endpoint + path.
@@ -191,9 +186,15 @@ export class Route
 class DiscordHTTPClient
 {
 	private _headers: Headers;
+	private _jsonHeaders: Headers;
 
 	constructor( token: string ) {
 		this._headers = new Headers([
+			["Authorization", "Bot "+token],
+			["User-Agent", UserAgent],
+			["X-RateLimit-Precision", "second"],
+		]);
+		this._jsonHeaders = new Headers([
 			["Authorization", "Bot "+token],
 			["User-Agent", UserAgent],
 			["Content-Type", "application/json"],
@@ -202,11 +203,34 @@ class DiscordHTTPClient
 	}
 
 	/** Request from route endpoint. <T> is the type of object returned. */
-	async request( route: Route ): Promise<Response> {
-		const r = await fetch(route.url,{
-			"method": route.method,
-			"headers": this._headers
-		});
+	async request( route: Route, data?: any ): Promise<Response> {
+		//console.log('================');
+		//console.log('METHOD:', route.method);
+		//console.log('HEADERS...');
+		//for( let [key, value] of this._headers ){
+		//	console.log(key,':',value)
+		//}
+		let r: Response;
+		if( data !== undefined ){
+			r = await fetch(route.url, {
+				"method": route.method,
+				"headers": this._jsonHeaders,
+				"body": JSON.stringify(data)
+			});
+		}
+		else {
+			r = await fetch(route.url, {
+				"method": route.method,
+				"headers": this._headers
+			});
+		}
+		//console.log('RESULT_HEADERS...');
+		//for( let [key, value] of r.headers ){
+		//	console.log(key,':',value)
+		//}
+		//console.log('RESULT_BODY...');
+		//console.log(await r.text());
+		//console.log('================');
 		if (r.status === HTTPCode.UNAUTHORISED)
 			throw new Error("Unauthorised to: "+route.url);
 		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
@@ -235,7 +259,8 @@ export class NetworkHandler
 		this._bucket = new BucketPool();
 	}
 	
-	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
+	// data = json to be sent with request
+	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions, data?: any ): Promise<Response> {
 		const route = new Route(method, path, substitutions);
 		// need to double check if rate limits are per path, or an intersection of path and method and major_parameter
 		// assumption is per path/url/endpoint
@@ -245,12 +270,12 @@ export class NetworkHandler
 				await waitableDate(new Date(value.reset));
 			}
 		}
-
 		const result = await new Promise<Response>(async resolve=>{
 			this._queue.serve([route.path], async()=>{
-				resolve(await this._http.request(route))
+				resolve(await this._http.request(route, data));
 			});
 		});
+		//console.log("SUCCEEDED REQUEST");
 		// Rate limiting
 		if( result.headers.has('X-RateLimit-Bucket') ){
 			let bucketId = result.headers.get('X-RateLimit-Bucket');
@@ -273,8 +298,8 @@ export class NetworkHandler
 		return result;
 	}
 
-	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
-		return (await this.request(method, path, substitutions)).json();
+	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions, data?: any ): Promise<T> {
+		return (await this.request(method, path, substitutions, data)).json();
 	}
 
 }

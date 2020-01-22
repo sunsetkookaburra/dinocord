@@ -8,8 +8,8 @@ import { Guild, GuildObject, GuildMap } from "./guild.ts";
 
 //@public_api
 type ClientEvent = 
-	(Message & { type: "message" }) |
-	({ type: "" });
+	(Message & { readonly type: "message" }) |
+	({ readonly type: "" });
 
 //@public_api
 class Client extends User
@@ -22,15 +22,27 @@ class Client extends User
 	constructor(userInit: UserObject, networkHandler: NetworkHandler, guilds: GuildMap ){
 		super(userInit);
 		this.guilds = guilds;
-		this.net  = networkHandler;
+		this.net = networkHandler;
 
 		this[Symbol.asyncIterator]; // reference so typescript outputs the property.
+	}
+
+	//@public_api
+	async leaveGuild( guild: Snowflake | Guild ){
+		if( guild instanceof Guild ){
+			await this.net.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
+			this.guilds.delete(guild.id);
+		}
+		else {
+			await this.net.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
+			this.guilds.delete(guild);
+		}
 	}
 
 	/** Event Listener */
 	private async*[Symbol.asyncIterator](): AsyncGenerator<ClientEvent, void, unknown> {
 		return; // remove and reuse later as client.exit();
-	};
+	}
 
 	static async getUserData( net: NetworkHandler ){
 		return net.requestJson<UserObject>('GET', '/users/@me')
@@ -49,6 +61,8 @@ class Client extends User
 //@public_api
 export async function createClient( token: string )
 {
+	// setup http
+	// init websocket
 	const net = new NetworkHandler( token );
 
 	// Run a "Log-In" to get details and verify token.

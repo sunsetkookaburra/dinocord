@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { Snowflake } from "./snowflake.ts";
+import { Snowflake, getSnowflakeDate } from "./snowflake.ts";
 
 export type GuildMap = Map<Snowflake, Guild>;
 
@@ -26,12 +26,16 @@ export interface GuildObject {
 	mfaLevel:number;
 }
 
+//@public_api
 export class Guild
 {
 	id:		Snowflake;
 	name:	string;
+	created:Date;
+	
 	constructor( guildInit: GuildObject ){
 		this.id = guildInit.id;
 		this.name = guildInit.name;
+		this.created = new Date(getSnowflakeDate(guildInit.id));
 	}
 }
