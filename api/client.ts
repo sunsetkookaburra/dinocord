@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 //import {  } from "../deps.ts";
-import { NetworkHandler } from "./net.ts";
+import { ClientContext } from "./net.ts";
 import { User, UserObject } from "./user.ts";
 import { Message } from "./message.ts";
 import { Snowflake } from "./snowflake.ts";
@@ -17,24 +17,29 @@ class Client extends User
 	/** List of guilds to which the user belongs. */
 	readonly guilds: GuildMap;
 	
-	private net: NetworkHandler;
+	private ctx: ClientContext;
 
-	constructor(userInit: UserObject, networkHandler: NetworkHandler, guilds: GuildMap ){
+	constructor(userInit: UserObject, clientContext: ClientContext, guilds: GuildMap ){
 		super(userInit);
 		this.guilds = guilds;
-		this.net = networkHandler;
+		this.ctx = clientContext;
 
 		this[Symbol.asyncIterator]; // reference so typescript outputs the property.
 	}
 
 	//@public_api
+	async getGuild( guildId: Snowflake ){
+		return new Guild(await this.ctx.requestJson<GuildObject>('GET', '/guilds/:guildId', { guildId } ));
+	}
+
+	//@public_api
 	async leaveGuild( guild: Snowflake | Guild ){
 		if( guild instanceof Guild ){
-			await this.net.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
+			await this.ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
 			this.guilds.delete(guild.id);
 		}
 		else {
-			await this.net.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
+			await this.ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
 			this.guilds.delete(guild);
 		}
 	}
@@ -44,13 +49,13 @@ class Client extends User
 		return; // remove and reuse later as client.exit();
 	}
 
-	static async getUserData( net: NetworkHandler ){
-		return net.requestJson<UserObject>('GET', '/users/@me')
+	static async getUserData( ctx: ClientContext ){
+		return ctx.requestJson<UserObject>('GET', '/users/@me')
 	}
 	
-	static async getUserGuild( net: NetworkHandler ){
+	static async getUserGuild( ctx: ClientContext ){
 		const guilds: GuildMap = new Map();
-		const userGuildsIn = await net.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
+		const userGuildsIn = await ctx.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
 		for (let i = 0; i < userGuildsIn.length; i++) {
 			guilds.set(userGuildsIn[i].id, new Guild(userGuildsIn[i]));
 		}
@@ -63,16 +68,16 @@ export async function createClient( token: string )
 {
 	// setup http
 	// init websocket
-	const net = new NetworkHandler( token );
+	const ctx = new ClientContext( token );
 
 	// Run a "Log-In" to get details and verify token.
 	// Check user token. Will throw if invalid.
-	let userObj = await Client.getUserData(net);
+	let userObj = await Client.getUserData(ctx);
 
 	// Retrieve list of guilds to init from.
-	const guilds = await Client.getUserGuild(net);
+	const guilds = await Client.getUserGuild(ctx);
 
-	return new Client(userObj, net, guilds);
+	return new Client(userObj, ctx, guilds);
 }
 
 /*
