@@ -1,10 +1,11 @@
 # API Operations Checklist
-- [ ] Rate Limiting
+- [x] Rate Limiting
 ## HTTP REST
 #### Client:
 - [ ] Edit Profile
-- [x] Retrieve Client's Guild List
-- [x] Retrieve Client's User Info
+- [x] List Guilds
+- [x] Get Client-User Info
+- [x] Leave Guild
 #### Channels:
 - [ ] Send Typing
 - [ ] Create

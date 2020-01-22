@@ -21,6 +21,12 @@ for await (const event of client) {
 }
 ```
 
+## Short Term Checklist
+- [ ] `ClientGuild extends Guild` so that `guild.leave()` can happen for guilds the client is in.
+- [ ] Intercept requests to cache data objects.
+- [ ] Figure out best way to pass through NetworkHandler to things such as TextChannel.
+- [x] Rename NetworkHandler to ClientContext
+
 ## API Checklist
 See how far along the implementation is [here](CHECKLIST.md).
 

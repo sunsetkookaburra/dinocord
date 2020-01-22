@@ -44,13 +44,13 @@ export interface ChannelObject {
 }
 
 
-export class Channel
-{
-    readonly id:    Snowflake;
-    readonly type:  number;
-}
+//export class Channel
+//{
+//    readonly id:    Snowflake;
+//    readonly type:  number;
+//}
 
-class TextChannel extends Channel
+class TextChannel
 {
     
 }

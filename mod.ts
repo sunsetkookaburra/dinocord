@@ -2,8 +2,8 @@
 discord docs::
 key type => key: type
 key ?type => key: type | null
-?key type => key: type | undefined
-?key ?type => key: type | null | undefined
+?key type => key?: type
+?key ?type => key?: type | null
 
 
 const client = await createClient(token);
@@ -15,6 +15,9 @@ for await (const msg of client){
 allow this to happen by extending
 extend guild class for ClientGuild
 client.guilds[0].leave();
+
+need to identify data objects coming through net
+and update cache from that.
 
 */
 

@@ -2,6 +2,7 @@
 
 import { LibraryMeta } from "../deps.ts";
 import { BucketPool } from "./bucket.ts";
+import { Cache } from "./cache.ts";
 
 /** HTTP Methods */
 type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -94,57 +95,8 @@ class ServiceQueue // to become async
 	}
 }
 
-// DEPRECATED
-// IMPLEMENT QUEUE CLASS for callers
-/** Small array extension to check whether resources are taken, and also unlock resources. */
-class ResourcePool extends Set<string> {
-	private _availableCallers: [string[], () => void][] = []; // contains resources in [0] and resolve in [1]
-	/** Checks whether the resources are already in use. */
-	inUse( resources: string[] ): boolean {
-		for (let r of resources) {
-			if (this.has(r)) return true;
-		}
-		return false;
-	}
-	/** Lock the specified resources, allowed even if already taken. */
-	lock( resources: string[] ) {
-		for (let r of resources) {
-			this.add(r);
-		}
-	}
-	/** Unlock the specified resources. */
-	unlock( resources: string[] ) {
-		for (let r of resources) {
-			this.delete(r);
-		}
-		this.serveWaitingCallers();
-	}
-	/** Serve new caller */
-	serveNewCaller(){
-
-	}
-	/** Serve awaitingCallers. NEED TO ENSURE ASYNC LOCK SO CALLERS DONT OVERLAP RESOURCES. */ 
-	serveWaitingCallers(){
-		for (let waitingCaller of this._availableCallers) {
-			if (!this.inUse(waitingCaller[0])) {
-				this.lock(waitingCaller[0]);
-				waitingCaller[1]();
-				this._availableCallers.filter(v=>v!==waitingCaller);
-				//this.unlock(waitingCaller[0]);
-			}
-		}
-	}
-	/** When awaited, will wait until resource is available. Resolves when _onAvailable is called. */
-	async untilAvailable( resources: string[] ): Promise<void> {
-		return new Promise(r=>{
-			this._availableCallers.push([resources, r]);
-			this.serveWaitingCallers();
-		});
-	}
-}
-
 /** Substitutions for route. */
-interface RouteOptions {
+interface PathSubstitutions {
 	[key: string]: any;
 }
 
@@ -162,7 +114,7 @@ export class Route
 	/** Resources required to use this path. */
 	readonly resources: string[];
 
-	constructor( public method: HTTPMethod, path: string, substitutions?: RouteOptions ) {
+	constructor( public method: HTTPMethod, path: string, substitutions?: PathSubstitutions ) {
 		// Extract "Major Parameters" as resources.
 		this.resources = /:channelId|:messageId|:webhookId/g.exec(path) || [];
 
@@ -244,8 +196,11 @@ class DiscordWSClient {
 
 }
 
-export class NetworkHandler
+// needs to manage caches from events too::
+//      interceptNetwork()
+export class ClientContext
 {
+	cache: Cache;
 	private _http:	DiscordHTTPClient;
 	private _ws:	DiscordWSClient;
 	private _queue:	ServiceQueue; // prevents burning out buckets by ensuring tasks happen when the resources are available.
@@ -253,6 +208,7 @@ export class NetworkHandler
 
 	constructor( token: string )
 	{
+		this.cache = new Cache();
 		this._http = new DiscordHTTPClient(token);
 		this._ws = new DiscordWSClient();
 		this._queue = new ServiceQueue();
@@ -260,7 +216,7 @@ export class NetworkHandler
 	}
 	
 	// data = json to be sent with request
-	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions, data?: any ): Promise<Response> {
+	async request( method: HTTPMethod, path: string, substitutions?: PathSubstitutions, data?: any ): Promise<Response> {
 		const route = new Route(method, path, substitutions);
 		// need to double check if rate limits are per path, or an intersection of path and method and major_parameter
 		// assumption is per path/url/endpoint
@@ -275,7 +231,6 @@ export class NetworkHandler
 				resolve(await this._http.request(route, data));
 			});
 		});
-		//console.log("SUCCEEDED REQUEST");
 		// Rate limiting
 		if( result.headers.has('X-RateLimit-Bucket') ){
 			let bucketId = result.headers.get('X-RateLimit-Bucket');
@@ -298,7 +253,7 @@ export class NetworkHandler
 		return result;
 	}
 
-	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions, data?: any ): Promise<T> {
+	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: PathSubstitutions, data?: any ): Promise<T> {
 		return (await this.request(method, path, substitutions, data)).json();
 	}
 
