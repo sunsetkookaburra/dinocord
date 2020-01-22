@@ -43,30 +43,103 @@ const CDNTemplates = {
 	teamIcon:			"/team-icons/:teamId/:teamIcon.png"
 };
 
-// CONSIDER USING SETS HERE FOR EASY CHECKING
+async function sleep( ms: number ): Promise<void> {
+	return new Promise(resolve=>{setTimeout(resolve, ms)});
+}
+
+async function waitableDate( date: Date ): Promise<void> {
+	let timerId: number;
+	return new Promise(resolve=>{
+		timerId = setInterval(()=>{
+			if( Date.now() > date.valueOf() ){
+				clearInterval(timerId);
+				resolve();
+			}
+		}, 100); // wait 100ms until retry
+	});
+}
+
+class ServiceQueue // to become async
+{
+	private _busyServices: Set<any> = new Set();
+	private _customers: {customerServices: any[], onServed: ()=>Promise<void>}[] = [];
+
+	isBusy( customerServices: any[] ){
+		for (let s of customerServices) if (this._busyServices.has(s)) return true;
+		return false;
+	}
+
+	/** Serve customer on arrival, or add to queue. */
+	serve( customerServices: any[], onServed: ()=>Promise<void> ){
+		if( this.isBusy(customerServices) ) this._customers.push({customerServices, onServed});
+		else {
+			for( let s of customerServices ) this._busyServices.add(s);
+			onServed().then(()=>{
+				this._free(customerServices);
+			});
+		}
+	}
+
+	/** Free up services. */
+	private _free( customerServices: any[] ){
+		for( let s of customerServices ) this._busyServices.delete(s);
+		// serve customers not requiring currently busy services
+		for( let i = 0; i < this._customers.length; i++ ){
+			if( !this.isBusy(this._customers[i].customerServices) ){
+				for( let s of customerServices ) this._busyServices.add(s);
+				this._customers[i].onServed().then(()=>{
+					this._free(this._customers.splice(i,1)[0].customerServices);
+				});
+			}
+		}
+	}
+}
+
+// DEPRECATED
+// IMPLEMENT QUEUE CLASS for callers
 /** Small array extension to check whether resources are taken, and also unlock resources. */
-class ResourcePool {
-	/** A list of the resources currently locked. */
-	private resources: string[] = [];
+class ResourcePool extends Set<string> {
+	private _availableCallers: [string[], () => void][] = []; // contains resources in [0] and resolve in [1]
 	/** Checks whether the resources are already in use. */
 	inUse( resources: string[] ): boolean {
-		for (let i = 0; i < resources.length; i++) {
-			if (this.resources.includes(resources[i])) return true;
+		for (let r of resources) {
+			if (this.has(r)) return true;
 		}
 		return false;
 	}
 	/** Lock the specified resources, allowed even if already taken. */
 	lock( resources: string[] ) {
-		for (let i = 0; i < resources.length; i++) {
-			if (!this.resources.includes(resources[i])){
-				this.resources.push(resources[i]);
-			}
+		for (let r of resources) {
+			this.add(r);
 		}
 	}
 	/** Unlock the specified resources. */
 	unlock( resources: string[] ) {
-		this.resources = this.resources.filter(res=>{
-			return !resources.includes(res);
+		for (let r of resources) {
+			this.delete(r);
+		}
+		this.serveWaitingCallers();
+	}
+	/** Serve new caller */
+	serveNewCaller(){
+
+	}
+	/** Serve awaitingCallers. NEED TO ENSURE ASYNC LOCK SO CALLERS DONT OVERLAP RESOURCES. */ 
+	serveWaitingCallers(){
+		for (let waitingCaller of this._availableCallers) {
+			if (!this.inUse(waitingCaller[0])) {
+				this.lock(waitingCaller[0]);
+				waitingCaller[1]();
+				this._availableCallers.filter(v=>v!==waitingCaller);
+				//this.unlock(waitingCaller[0]);
+			}
+		}
+	}
+	/** When awaited, will wait until resource is available. Resolves when _onAvailable is called. */
+	async untilAvailable( resources: string[] ): Promise<void> {
+		return new Promise(r=>{
+			this._availableCallers.push([resources, r]);
+			this.serveWaitingCallers();
 		});
 	}
 }
@@ -86,6 +159,9 @@ export class Route
 {
 	/** Formatted API Endpoint */
 	url: string;
+
+	/** Raw path, unformatted. */
+	path: string;
 
 	/** Resources required to use this path. */
 	readonly resources: string[];
@@ -108,6 +184,7 @@ export class Route
 		
 		// Set url to api endpoint + path.
 		this.url = Endpoint.api + path;
+		this.path = path;
 	}
 }
 
@@ -120,26 +197,21 @@ class DiscordHTTPClient
 			["Authorization", "Bot "+token],
 			["User-Agent", UserAgent],
 			["Content-Type", "application/json"],
-			["X-RateLimit-Precision", "millisecond"],
+			["X-RateLimit-Precision", "second"],
 		]);
 	}
 
 	/** Request from route endpoint. <T> is the type of object returned. */
-	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
-		const route = new Route(method, path, substitutions);
+	async request( route: Route ): Promise<Response> {
 		const r = await fetch(route.url,{
 			"method": route.method,
 			"headers": this._headers
 		});
 		if (r.status === HTTPCode.UNAUTHORISED)
-			throw new Error("Unauthorised to: "+path);
+			throw new Error("Unauthorised to: "+route.url);
 		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
 			throw new Error("Damn! Rate limited.");
 		return r;
-	}
-
-	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
-		return await(await this.request(method, path, substitutions)).json() as T;
 	}
 }
 
@@ -150,25 +222,59 @@ class DiscordWSClient {
 
 export class NetworkHandler
 {
-	private http:	DiscordHTTPClient;
-	private ws:		DiscordWSClient;
-	private res:	ResourcePool;
-	private bucket:	BucketPool;
+	private _http:	DiscordHTTPClient;
+	private _ws:	DiscordWSClient;
+	private _queue:	ServiceQueue; // prevents burning out buckets by ensuring tasks happen when the resources are available.
+	private _bucket:BucketPool; // prevents overfilling rate limit buckets
 
 	constructor( token: string )
 	{
-		this.http = new DiscordHTTPClient(token);
-		this.ws = new DiscordWSClient();
-		this.res = new ResourcePool();
-		this.bucket = new BucketPool();
+		this._http = new DiscordHTTPClient(token);
+		this._ws = new DiscordWSClient();
+		this._queue = new ServiceQueue();
+		this._bucket = new BucketPool();
 	}
 	
-	request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
-		return this.http.request(method, path, substitutions);
+	async request( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<Response> {
+		const route = new Route(method, path, substitutions);
+		// need to double check if rate limits are per path, or an intersection of path and method and major_parameter
+		// assumption is per path/url/endpoint
+		// check bucket, if empty wait for refill
+		for( let [key, value] of this._bucket ){
+			if( value.path === route.path && value.remaining < 2 ){
+				await waitableDate(new Date(value.reset));
+			}
+		}
+
+		const result = await new Promise<Response>(async resolve=>{
+			this._queue.serve([route.path], async()=>{
+				resolve(await this._http.request(route))
+			});
+		});
+		// Rate limiting
+		if( result.headers.has('X-RateLimit-Bucket') ){
+			let bucketId = result.headers.get('X-RateLimit-Bucket');
+			if( this._bucket.has(bucketId) ){
+				if( route.path !== this._bucket.get(bucketId).path) console.log("AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!");
+				this._bucket.get(bucketId).limit = Number(result.headers.get('X-RateLimit-Limit'));
+				this._bucket.get(bucketId).remaining = Number(result.headers.get('X-RateLimit-Remaining'));
+				this._bucket.get(bucketId).reset = Number(result.headers.get('X-RateLimit-Reset'));
+				this._bucket.get(bucketId).path = route.path;
+			}
+			else {
+				this._bucket.set(bucketId, {
+					limit: Number(result.headers.get('X-RateLimit-Limit')),
+					remaining: Number(result.headers.get('X-RateLimit-Remaining')),
+					reset: Number(result.headers.get('X-RateLimit-Reset')),
+					path: route.path
+				});
+			}
+		}
+		return result;
 	}
 
-	requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
-		return this.http.requestJson(method, path, substitutions);
+	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: RouteOptions ): Promise<T> {
+		return (await this.request(method, path, substitutions)).json();
 	}
 
 }
