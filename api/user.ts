@@ -113,7 +113,7 @@ export interface ConnectionObject {
 }
 
 //@public_api
-/** A Discord user. */
+/** A Discord User. */
 export class User
 {
 	/** The User's ID. */

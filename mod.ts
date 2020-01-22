@@ -19,6 +19,9 @@ client.guilds[0].leave();
 need to identify data objects coming through net
 and update cache from that.
 
+add createObject('ClassName', init: ClassNameObject) or a special Object for creation.
+
 */
 
 export { createClient } from "./api/client.ts";
+// export { createObject } from "./api/create_object.ts";

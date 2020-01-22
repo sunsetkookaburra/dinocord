@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
+// Currently i'm using this as my test program.
 import { createClient } from "./mod.ts";
 
 window.onload = async()=>
