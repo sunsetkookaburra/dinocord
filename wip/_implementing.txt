@@ -1,4 +1,52 @@
-/*
+// Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
+
+ - [x] ServiceQueue: Locking resources
+    - [x] Comments
+ - [x] EventQueue
+    - [ ] Comments
+ - [ ] HTTPClient
+    - [ ] Comments
+ - [ ] WSClient
+    - [ ] Comments
+ - [ ] BucketPool : Map<Snowflake, Bucket>
+    - [ ] Comments
+ - [ ] DiscordCache: Caches all objects inbound in discord.
+
+ - [ ] ClientContext: Programming Interface
+    => All current information, acts as the internal client data controls
+
+ - [ ] Client: User Interface
+ 
+Need a way to verify events/messages were sent and received.
+An Optimist Message Set which store the message, and deletes on confirmation of being received.
+
+----------------
+
+Discord Objects:
+
+Message
+
+Channel
+
+Guild
+
+User
+
+Other Objects:
+
+Attachment
+
+Colour
+
+----------------
+
+Implement tests for speed into certain classes.
+Ideally need to test functions by a server pretending to be discord.
+
+----------------
+
+WSClient
+
 + Sending payloads.
 + Receiving payloads.
 
@@ -43,11 +91,17 @@ FlowControlQueue
 EventQueue
 ObjectCache
 
-----------------------
+
 a next version: sharding
 + a process per socket
 ? should all events be merged ?
 + a different api for merged events?
 
+----------------
 
-*/
+HTTP Client
+
++authenicate with header
++provide user agent
++snowflakes as identifiers
++rate limits
