@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-import { ISO8601 } from "../deps.ts";
-import { Snowflake } from "./snowflake.ts";
-import { UserObject } from "./user.ts";
+import { ISO8601 } from '../deps.ts';
+import { Snowflake } from './snowflake.ts';
+import { UserObject } from './user.ts';
 
 /** What type of channel. */
 export enum ChannelTypes {

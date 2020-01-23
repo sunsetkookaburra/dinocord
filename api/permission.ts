@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { Snowflake } from "./snowflake.ts";
+import { Snowflake } from './snowflake.ts';
 
 /** Permissions and their bit-masks. */
 const PermissionFlags = {

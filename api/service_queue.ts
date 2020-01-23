@@ -14,10 +14,15 @@ export class ServiceQueue
 
 	/** Serve customer on arrival, or add to queue. */
 	serve( customerServices: any[], onServed: ()=>Promise<void> ){
+        // Add to waiting queue if required services are busy.
 		if( this.isBusy(customerServices) ) this._customers.push({customerServices, onServed});
-		else {
+        // otherwise, serve them straight await.
+        else {
+            // lock the services
 			for( let s of customerServices ) this._busyServices.add(s);
+            // serve the customer
 			onServed().then(()=>{
+                // free the services
 				this._free(customerServices);
 			});
 		}
@@ -28,9 +33,13 @@ export class ServiceQueue
 		for( let s of customerServices ) this._busyServices.delete(s);
 		// serve customers not requiring currently busy services
 		for( let i = 0; i < this._customers.length; i++ ){
+            // if the required services are not busy
 			if( !this.isBusy(this._customers[i].customerServices) ){
-				for( let s of customerServices ) this._busyServices.add(s);
+                // lock the services
+                for( let s of customerServices ) this._busyServices.add(s);
+                // serve the customer
 				this._customers[i].onServed().then(()=>{
+                    // free the services
 					this._free(this._customers.splice(i,1)[0].customerServices);
 				});
 			}

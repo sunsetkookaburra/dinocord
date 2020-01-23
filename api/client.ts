@@ -1,16 +1,16 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-//import {  } from "../deps.ts";
-import { ClientContext } from "./net.ts";
-import { User, UserObject } from "./user.ts";
-import { Message } from "./message.ts";
-import { Snowflake } from "./snowflake.ts";
-import { Guild, GuildObject, GuildMap } from "./guild.ts";
+//import {  } from '../deps.ts';
+import { ClientContext } from './net.ts';
+import { User, UserObject } from './user.ts';
+import { Message } from './message.ts';
+import { Snowflake } from './snowflake.ts';
+import { Guild, GuildObject, GuildMap } from './guild.ts';
 import { createObject, PublicObjectTypes } from './create_object.ts';
 
 //@public_api
 type ClientEvent = 
-	(Message & { readonly type: "message" }) |
-	({ readonly type: "" });
+	(Message & { readonly type: 'message' }) |
+	({ readonly type: '' });
 
 //@public_api
 class Client extends User
@@ -24,7 +24,6 @@ class Client extends User
 		super(userInit);
 		this.guilds = guilds;
 		this._ctx = clientContext;
-
 		this[Symbol.asyncIterator]; // reference so typescript outputs the property.
 	}
 
@@ -41,11 +40,11 @@ class Client extends User
 	//@public_api
 	async leaveGuild( guild: Snowflake | Guild ){
 		if( guild instanceof Guild ){
-			await this._ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild.id });
+			await this._ctx.request('DELETE', '/users/@me/guilds/:guild_id', { guild_id: guild.id });
 			this.guilds.delete(guild.id);
 		}
 		else {
-			await this._ctx.request('DELETE','/users/@me/guilds/:guild_id', { guild_id: guild });
+			await this._ctx.request('DELETE', '/users/@me/guilds/:guild_id', { guild_id: guild });
 			this.guilds.delete(guild);
 		}
 	}
@@ -95,12 +94,12 @@ async function createSockClient( token: string )
 	let awaitingRepsone = false;
 	for await (const msg of sock.receive())
 	{
-		if (typeof msg === "string")
+		if (typeof msg === 'string')
 		{
 			const parsed = JSON.parse(msg) as GatewayPayload;
 			if (parsed.opcode === GatewayOpcode.HELLO)
 			{
-				heartbeatInterval = Number(parsed.data["heartbeat_interval"]);
+				heartbeatInterval = Number(parsed.data['heartbeat_interval']);
 				heartId = setInterval(async()=>{
 					// socket died on discord's end
 					if (awaitingRepsone)
@@ -111,16 +110,16 @@ async function createSockClient( token: string )
 					}
 					awaitingRepsone = true;
 					await sock.send(JSON.stringify({
-						"opcode": GatewayOpcode.HEARTBEAT,
-						"data": {}
+						'opcode': GatewayOpcode.HEARTBEAT,
+						'data': {}
 					} as GatewayPayload));
 				}, heartbeatInterval);
 
 				// Now identify
 				await sock.send(JSON.stringify({
-					"opcode": GatewayOpcode.IDENTIFY,
-					"data": {
-						"token": token,
+					'opcode': GatewayOpcode.IDENTIFY,
+					'data': {
+						'token': token,
 						
 					}
 				} as GatewayPayload));

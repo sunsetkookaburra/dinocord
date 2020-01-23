@@ -1,12 +1,12 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { LibraryMeta } from "../deps.ts";
-import { BucketPool } from "./bucket.ts";
-import { Cache } from "./cache.ts";
-import { ServiceQueue } from "./service_queue.ts";
+import { LibraryMeta } from '../deps.ts';
+import { BucketPool } from './bucket.ts';
+import { Cache } from './cache.ts';
+import { ServiceQueue } from './service_queue.ts';
 
 /** HTTP Methods */
-type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 export enum HTTPCode {
 	OK					= 200,
@@ -25,23 +25,23 @@ export enum HTTPCode {
 
 /** Discord Base Urls */
 const Endpoint = {
-	api: "https://discordapp.com/api/v6",
-	cdn: "https://cdn.discordapp.com",
-	gateway: "wss://gateway.discord.gg/?v=6&encoding=json"
+	api: 'https://discordapp.com/api/v6',
+	cdn: 'https://cdn.discordapp.com',
+	gateway: 'wss://gateway.discord.gg/?v=6&encoding=json'
 };
 
 /** Describes the type of API. Required by Discord API. */
-const UserAgent = "DiscordBot ("+LibraryMeta.url+", "+LibraryMeta.version+") Deno/"+Deno.version.deno;
+const UserAgent = 'DiscordBot ('+LibraryMeta.url+', '+LibraryMeta.version+') Deno/'+Deno.version.deno;
 
 /** CDN Endpoint Templates */
 const CDNTemplates = {
-	emoji:				"/emojis/:emojiId.png",
-	guildIcon:			"/icons/:guildId/:guildIcon.png",
-	guildSplash:		"/splashes/:guildId/:guildSplash.png",
-	guildBanner:		"/splashes/:guildId/:guildBanner.png",
-	defaultUserAvatar:	"/embed/avatars/:userDiscriminator.png",
-	userAvatar:			"/avatars/:userId/:userAvatar.png",
-	teamIcon:			"/team-icons/:teamId/:teamIcon.png"
+	emoji:				'/emojis/:emojiId.png',
+	guildIcon:			'/icons/:guildId/:guildIcon.png',
+	guildSplash:		'/splashes/:guildId/:guildSplash.png',
+	guildBanner:		'/splashes/:guildId/:guildBanner.png',
+	defaultUserAvatar:	'/embed/avatars/:userDiscriminator.png',
+	userAvatar:			'/avatars/:userId/:userAvatar.png',
+	teamIcon:			'/team-icons/:teamId/:teamIcon.png'
 };
 
 async function sleep( ms: number ): Promise<void> {
@@ -107,58 +107,45 @@ class DiscordHTTPClient
 
 	constructor( token: string ) {
 		this._headers = new Headers([
-			["Authorization", "Bot "+token],
-			["User-Agent", UserAgent],
-			["X-RateLimit-Precision", "second"],
+			['Authorization', 'Bot '+token],
+			['User-Agent', UserAgent],
+			['X-RateLimit-Precision', 'second'],
 		]);
 		this._jsonHeaders = new Headers([
-			["Authorization", "Bot "+token],
-			["User-Agent", UserAgent],
-			["Content-Type", "application/json"],
-			["X-RateLimit-Precision", "second"],
+			['Authorization', 'Bot '+token],
+			['User-Agent', UserAgent],
+			['Content-Type', 'application/json'],
+			['X-RateLimit-Precision', 'second'],
 		]);
 	}
 
 	/** Request from route endpoint. <T> is the type of object returned. */
 	async request( route: Route, data?: any ): Promise<Response> {
-		//console.log('================');
-		//console.log('METHOD:', route.method);
-		//console.log('HEADERS...');
-		//for( let [key, value] of this._headers ){
-		//	console.log(key,':',value)
-		//}
 		let r: Response;
 		if( data !== undefined ){
 			r = await fetch(route.url, {
-				"method": route.method,
-				"headers": this._jsonHeaders,
-				"body": JSON.stringify(data)
+				'method': route.method,
+				'headers': this._jsonHeaders,
+				'body': JSON.stringify(data)
 			});
 		}
 		else {
 			r = await fetch(route.url, {
-				"method": route.method,
-				"headers": this._headers
+				'method': route.method,
+				'headers': this._headers
 			});
 		}
-		//console.log('RESULT_HEADERS...');
-		//for( let [key, value] of r.headers ){
-		//	console.log(key,':',value)
-		//}
-		//console.log('RESULT_BODY...');
-		//console.log(await r.text());
-		//console.log('================');
 		if (r.status === HTTPCode.UNAUTHORISED)
-			throw new Error("Unauthorised to: "+route.url);
+			throw new Error('Unauthorised to: '+route.url);
 		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
-			throw new Error("Damn! Rate limited.");
+			throw new Error('Damn! Rate limited.');
 		return r;
 	}
 }
 
 /** Websocket client */
 class DiscordWSClient {
-
+	
 }
 
 // needs to manage caches from events too::
@@ -200,7 +187,7 @@ export class ClientContext
 		if( result.headers.has('X-RateLimit-Bucket') ){
 			let bucketId = result.headers.get('X-RateLimit-Bucket');
 			if( this._bucket.has(bucketId) ){
-				if( route.path !== this._bucket.get(bucketId).path) console.log("AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!");
+				if( route.path !== this._bucket.get(bucketId).path) console.log('AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!');
 				this._bucket.get(bucketId).limit = Number(result.headers.get('X-RateLimit-Limit'));
 				this._bucket.get(bucketId).remaining = Number(result.headers.get('X-RateLimit-Remaining'));
 				this._bucket.get(bucketId).reset = Number(result.headers.get('X-RateLimit-Reset'));

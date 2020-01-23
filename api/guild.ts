@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { Snowflake, getSnowflakeDate } from "./snowflake.ts";
+import { Snowflake, getSnowflakeDate } from './snowflake.ts';
 
 export type GuildMap = Map<Snowflake, Guild>;
 

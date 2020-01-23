@@ -24,7 +24,7 @@ console.log('Bot Connected:', client);
 
 for await (const event of client) {
     if (event.type === 'message') {
-        event.reply('Roar!');
+        await event.reply('Roar!');
     }
 }
 ```
