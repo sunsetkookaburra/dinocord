@@ -3,22 +3,23 @@
  - [x] ServiceQueue: Locking resources
     - [x] Comments
  - [x] EventQueue
-    - [ ] Comments
- - [ ] HTTPClient
+    - [x] Comments
+ - [x] HTTPClient
     - [ ] Comments
  - [ ] WSClient
     - [ ] Comments
  - [ ] BucketPool : Map<Snowflake, Bucket>
     - [ ] Comments
- - [ ] DiscordCache: Caches all objects inbound in discord.
+ - [ ] DiscordCache: Map<Snowflake, Object>: Caches all objects inbound in discord.
+    - [ ] Comments
 
  - [ ] ClientContext: Programming Interface
-    => All current information, acts as the internal client data controls
+    => All current information, acts as the internal client data controller
 
  - [ ] Client: User Interface
  
 Need a way to verify events/messages were sent and received.
-An Optimist Message Set which store the message, and deletes on confirmation of being received.
+An "Optimist" Message Set which stores the message, and deletes on confirmation of being received, this can wrap around EventQueue as Flow control e.g. EventQueue(millis).
 
 ----------------
 
@@ -41,7 +42,7 @@ Colour
 ----------------
 
 Implement tests for speed into certain classes.
-Ideally need to test functions by a server pretending to be discord.
+Ideally need to test certain calls with a server pretending to be discord, sending premade responses. (long term)
 
 ----------------
 

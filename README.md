@@ -1,4 +1,4 @@
-![DinoCord](banner.png)
+![DinoCord](docs/banner.png)
 
 ## WARNING!
 This is by no means ready, do not use it at all in production. Any functions or properties are likely to change.
