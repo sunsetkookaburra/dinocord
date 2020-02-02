@@ -1,5 +1,6 @@
 // Dependencies from the Deno Standard Library
-export { connectWebSocket } from 'https://deno.land/std@v0.30.0/ws/mod.ts';
+export { connectWebSocket, WebSocket } from 'https://deno.land/std@v0.31.0/ws/mod.ts';
+export { deferred, Deferred } from 'https://deno.land/std@v0.31.0/util/async.ts';
 
 /** Library related metadata */
 export const LibraryMeta = {

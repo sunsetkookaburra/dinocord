@@ -1,52 +1,8 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { LibraryMeta } from '../deps.ts';
-import { BucketPool } from './bucket.ts';
-import { Cache } from './cache.ts';
-import { ServiceQueue } from './service_queue.ts';
-
-/** HTTP Methods */
-type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-
-export enum HTTPCode {
-	OK					= 200,
-	CREATED				= 201,
-	NO_CONTENT			= 204,
-	NOT_MODIFIED		= 304,
-	BAD_REQUEST			= 400,
-	UNAUTHORISED		= 401,
-	FORBIDDEN			= 403,
-	NOT_FOUND			= 404,
-	METHOD_NOT_ALLOWED	= 405,
-	TOO_MANY_REQUESTS	= 429,
-	SERVER_ERROR		= 500,
-	GATEWAY_UNAVAILABLE	= 502
-};
-
-/** Discord Base Urls */
-const Endpoint = {
-	api: 'https://discordapp.com/api/v6',
-	cdn: 'https://cdn.discordapp.com',
-	gateway: 'wss://gateway.discord.gg/?v=6&encoding=json'
-};
-
-/** Describes the type of API. Required by Discord API. */
-const UserAgent = 'DiscordBot ('+LibraryMeta.url+', '+LibraryMeta.version+') Deno/'+Deno.version.deno;
-
-/** CDN Endpoint Templates */
-const CDNTemplates = {
-	emoji:				'/emojis/:emojiId.png',
-	guildIcon:			'/icons/:guildId/:guildIcon.png',
-	guildSplash:		'/splashes/:guildId/:guildSplash.png',
-	guildBanner:		'/splashes/:guildId/:guildBanner.png',
-	defaultUserAvatar:	'/embed/avatars/:userDiscriminator.png',
-	userAvatar:			'/avatars/:userId/:userAvatar.png',
-	teamIcon:			'/team-icons/:teamId/:teamIcon.png'
-};
-
-async function sleep( ms: number ): Promise<void> {
-	return new Promise(resolve=>{setTimeout(resolve, ms)});
-}
+import { WebSocket, connectWebSocket, LibraryMeta, deferred } from '../deps.ts';
+import { Snowflake, GatewayOpcode, GatewayPayload } from './data_objects.ts';
+import { AsyncServiceQueue, AsyncEventQueue } from './queue.ts';
 
 async function waitableDate( date: Date ): Promise<void> {
 	let timerId: number;
@@ -60,153 +16,200 @@ async function waitableDate( date: Date ): Promise<void> {
 	});
 }
 
-/** Substitutions for route. */
-interface PathSubstitutions {
-	[key: string]: any;
+export async function createClientContext( token: string ){
+    
+    let http = new DiscordHTTPClient(token);
+    let gateway: string = (await http.requestJson('GET','/gateway'))['url'];
+    let ws = new DiscordWSClient(gateway, token);
+    await ws.ready;
+    let ctx =  new ClientContext(http, ws);
+    return ctx;
 }
 
-/** Wrapper around REST API URLs. Ensure resources are shared 
- * 	and not used at the same time to allow Bucket / Rate
- * 	management. */
-export class Route
-{
-	/** Formatted API Endpoint */
-	url: string;
-
-	/** Raw path, unformatted. */
-	path: string;
-
-	/** Resources required to use this path. */
-	readonly resources: string[];
-
-	constructor( public method: HTTPMethod, path: string, substitutions?: PathSubstitutions ) {
-		// Extract "Major Parameters" as resources.
-		this.resources = /:channelId|:messageId|:webhookId/g.exec(path) || [];
-
-		// Add current path as a resource.
-		this.resources.push(path);
-		this.resources.push(method);
-
-		// Substitue values e.g. :channelId => {SNOWFLAKE}
-		if (substitutions !== undefined) {
-			for( let k of Object.keys(substitutions) ){
-				path = path.replace(':'+k, Deno.inspect(substitutions[k]));
-			}
-		}
-		
-		// Set url to api endpoint + path.
-		this.url = Endpoint.api + path;
-		this.path = path;
-	}
+export class ClientContext {
+    // any time a data object is created, cache it
+    cache: Map<Snowflake, unknown>;
+    http: DiscordHTTPClient;
+    ws: DiscordWSClient;
+    constructor( http: DiscordHTTPClient, ws: DiscordWSClient ){
+        this.cache = new Map();
+        this.http = http;
+        this.ws = ws;
+    }
 }
 
+// done as far as a working solution, just a bit of polish
 class DiscordHTTPClient
 {
-	private _headers: Headers;
-	private _jsonHeaders: Headers;
-
-	constructor( token: string ) {
-		this._headers = new Headers([
-			['Authorization', 'Bot '+token],
-			['User-Agent', UserAgent],
+    static Endpoint = 'https://discordapp.com/api/v6';
+    static UserAgent = `DiscordBot (${LibraryMeta.url}, ${LibraryMeta.version}) Deno/${Deno.version.deno}`;
+    private headers: Headers;
+    private queue = new AsyncServiceQueue();
+    private buckets = new Map<Snowflake, Bucket>();
+    constructor( token: string ){
+        this.headers = new Headers([
+			['Authorization', `Bot ${token}`],
+			['User-Agent', DiscordHTTPClient.UserAgent],
 			['X-RateLimit-Precision', 'second'],
-		]);
-		this._jsonHeaders = new Headers([
-			['Authorization', 'Bot '+token],
-			['User-Agent', UserAgent],
-			['Content-Type', 'application/json'],
-			['X-RateLimit-Precision', 'second'],
-		]);
-	}
-
-	/** Request from route endpoint. <T> is the type of object returned. */
-	async request( route: Route, data?: any ): Promise<Response> {
-		let r: Response;
-		if( data !== undefined ){
-			r = await fetch(route.url, {
-				'method': route.method,
-				'headers': this._jsonHeaders,
-				'body': JSON.stringify(data)
-			});
-		}
-		else {
-			r = await fetch(route.url, {
-				'method': route.method,
-				'headers': this._headers
-			});
-		}
-		if (r.status === HTTPCode.UNAUTHORISED)
-			throw new Error('Unauthorised to: '+route.url);
-		else if (r.status === HTTPCode.TOO_MANY_REQUESTS)
-			throw new Error('Damn! Rate limited.');
-		return r;
-	}
-}
-
-/** Websocket client */
-class DiscordWSClient {
-	
-}
-
-// needs to manage caches from events too::
-//      interceptNetwork()
-export class ClientContext
-{
-	cache: Cache;
-	private _http:	DiscordHTTPClient;
-	private _ws:	DiscordWSClient;
-	private _queue:	ServiceQueue; // prevents burning out buckets by ensuring tasks happen when the resources are available.
-	private _bucket:BucketPool; // prevents overfilling rate limit buckets
-
-	constructor( token: string )
-	{
-		this.cache = new Cache();
-		this._http = new DiscordHTTPClient(token);
-		this._ws = new DiscordWSClient();
-		this._queue = new ServiceQueue();
-		this._bucket = new BucketPool();
-	}
-	
-	// data = json to be sent with request
-	async request( method: HTTPMethod, path: string, substitutions?: PathSubstitutions, data?: any ): Promise<Response> {
-		const route = new Route(method, path, substitutions);
-		// need to double check if rate limits are per path, or an intersection of path and method and major_parameter
-		// assumption is per path/url/endpoint
-		// check bucket, if empty wait for refill
-		for( let [key, value] of this._bucket ){
-			if( value.path === route.path && value.remaining < 2 ){
-				await waitableDate(new Date(value.reset));
-			}
-		}
-		const result = await new Promise<Response>(async resolve=>{
-			this._queue.serve([route.path], async()=>{
-				resolve(await this._http.request(route, data));
-			});
-		});
-		// Rate limiting
+        ]);
+    }
+    static route(path: string, substitutions?: {[key: string]: string} ): Route {
+        return {
+            resources: [path],
+            url: (()=>{
+                let url = path;
+                for( let k of Object.keys(substitutions||{}) ){
+                    url = url.replace(':'+k, Deno.inspect(substitutions[k]));
+                }
+                return url;
+            })()
+        }
+    }
+    async request( method: HTTPMethod, path: string, options?: RequestOptions ){
+        // format path for api
+        let route = DiscordHTTPClient.route(path, (options||{}).substitutions);
+        // check bucket
+        for( let [key, bucket] of this.buckets ){
+            // if bucket low, wait until refill
+            if( path === bucket.path && bucket.remaining < 2 ){
+                await waitableDate(new Date(bucket.reset));
+            }
+        }
+        // serve the request
+        let result = await this.queue.serve<Response>(route.resources,async()=>{
+            let body: string; // consider making Uint8Array
+            if( (options||{}).type === 'json' ){
+                this.headers.set('Content-Type', 'application/json');
+                body = JSON.stringify(body);
+            }
+            /* IMPLEMENT FOR FILES
+            else if( options.type === 'form' ){
+                let boundary = '----DiscordFormBoundary'+Array.from(crypto.getRandomValues(new Uint32Array(2))).map(v=>v.toString(36)).join('');
+                this.headers.set('Content-Type', 'multipart/form-data; boundary='+boundary);
+                for( let key of Object.keys(options.body) ){
+                    body += boundary+'\r\n';
+                    body += 'Content-Disposition: form-data; name="'+key+'"'+'\r\n\r\n'
+                    body += DATA
+                    body += '\r\n'
+                }
+                body += boundary+'--'
+            }*/
+            let result = await fetch('https://discordapp.com/api'+route.url, {
+                'method': method,
+                'headers': this.headers,
+                'body': body
+            });
+            this.headers.delete('Content-Type');
+            return result;
+        });
+        // check for rate-limit headers
 		if( result.headers.has('X-RateLimit-Bucket') ){
 			let bucketId = result.headers.get('X-RateLimit-Bucket');
-			if( this._bucket.has(bucketId) ){
-				if( route.path !== this._bucket.get(bucketId).path) console.log('AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!');
-				this._bucket.get(bucketId).limit = Number(result.headers.get('X-RateLimit-Limit'));
-				this._bucket.get(bucketId).remaining = Number(result.headers.get('X-RateLimit-Remaining'));
-				this._bucket.get(bucketId).reset = Number(result.headers.get('X-RateLimit-Reset'));
-				this._bucket.get(bucketId).path = route.path;
+			if( this.buckets.has(bucketId) ){
+				if( path !== this.buckets.get(bucketId).path) console.log('AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!');
+				this.buckets.get(bucketId).limit = Number(result.headers.get('X-RateLimit-Limit'));
+				this.buckets.get(bucketId).remaining = Number(result.headers.get('X-RateLimit-Remaining'));
+				this.buckets.get(bucketId).reset = Number(result.headers.get('X-RateLimit-Reset'));
+				this.buckets.get(bucketId).path = path;
 			}
 			else {
-				this._bucket.set(bucketId, {
+				this.buckets.set(bucketId, {
 					limit: Number(result.headers.get('X-RateLimit-Limit')),
 					remaining: Number(result.headers.get('X-RateLimit-Remaining')),
 					reset: Number(result.headers.get('X-RateLimit-Reset')),
-					path: route.path
+					path: path
 				});
 			}
-		}
-		return result;
-	}
+        }
+        return result;
+    }
+    // Returns result as an object.
+    async requestJson( method: HTTPMethod, path: string, options?: RequestOptions ){
+        return (await this.request(method, path, options)).json();
+    }
+}
 
-	async requestJson<T>( method: HTTPMethod, path: string, substitutions?: PathSubstitutions, data?: any ): Promise<T> {
-		return (await this.request(method, path, substitutions, data)).json();
-	}
+class DiscordWSClient
+{
+    ready = deferred<void>();
+    private events = new AsyncEventQueue();
+	private gateway: string;
+    private socket: WebSocket;
+    private heartbeatTimerId: number;
+    private sequenceId: number;
+    private receivedHeartbeatAck: boolean = true;
+    private outboundQueue = new AsyncEventQueue(550);
+    [Symbol.asyncIterator] = this.events[Symbol.asyncIterator];
+	constructor( gateway: string, private token: string ){
+        this.init(gateway);
+        this.initOutbound();
+        this.listenToDiscord();        
+    }
+    private async init( gateway: string ){
+        this.gateway = gateway + '?v=6&encoding=json';
+        this.socket = await connectWebSocket(this.gateway);
+        let heartbeatInterval = JSON.parse((await this.socket.receive().next()).value)['d']['heartbeat_interval'];
+        this.heartbeat();
+        this.heartbeatTimerId = setInterval(this.heartbeat, heartbeatInterval);
+        this.ready.resolve();
+    }
+    private async initOutbound(){
+        await this.ready;
+        for await( const payloadToSend of this.outboundQueue ){
+            await this.socket.send(payloadToSend as string);
+        }
+    }
+    private async listenToDiscord(){
+        await this.ready;
+        for await( const e of this.socket.receive() ){
+            let eventObj = JSON.parse(e as string) as GatewayPayload;
+            if( eventObj.op === GatewayOpcode.DISPATCH ){
 
+            }
+            else if( eventObj.op === GatewayOpcode.HEARTBEAT_ACK ){
+                this.receivedHeartbeatAck = true;
+            }
+        }
+    }
+    private heartbeat(){
+        if( !this.receivedHeartbeatAck ){
+            clearInterval(this.heartbeatTimerId);
+            this.socket.close(2000);
+            console.log("CLOSED WEBSOCKET");
+        }
+        this.receivedHeartbeatAck = false;
+        this.sendPayload(GatewayOpcode.HEARTBEAT, (this.sequenceId===undefined)?null:this.sequenceId);
+    }
+	// should handle sequence number automatically.
+	// recognise hard limit of 4096 bytes for a payload
+	async sendPayload( opcode: number, eventData: any ): Promise<void> {
+        this.outboundQueue.post(JSON.stringify({
+            'op': opcode,
+            'd': eventData
+        }));
+	}
+}
+
+// Types and Interfaces
+
+type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+
+interface Bucket {
+	limit:		number;
+	remaining:	number;
+	reset:		number;
+	path:		string;
+}
+
+type RequestOptions = ({type: 'json', body: any} | {type: 'form', body: any, fileMimeType: string}) & {substitutions: {[key: string]: string}}
+interface Route {
+    url: string;
+    resources: string[];
+}
+
+interface Bucket {
+	limit:		number;
+	remaining:	number;
+	reset:		number;
+	path:		string;
 }

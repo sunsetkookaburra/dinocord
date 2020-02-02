@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 // Currently i'm using this as my test program.
+
 import { createClient } from './mod.ts';
 
 window.onload = async()=>
@@ -8,15 +9,11 @@ window.onload = async()=>
 	console.log('Bot Connected:', client);
 	
 	console.log('Bot Belongs To Guilds:');
-	for (const guild of client.guilds.values()) {
-		console.log(' +', guild.name);
-	}
-
-	//client.createObject('guild'); WIP
+	console.log(client.guilds);
 
 	for await (const e of client) {
 		if (e.type === 'message') {
-			//await e.reply('Roar!');
+			await e.reply('Roar!');
 		}
 	}
 

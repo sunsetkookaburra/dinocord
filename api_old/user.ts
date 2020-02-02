@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
-
-import { Snowflake, UserObject } from './data_objects.ts'
+import { ISO8601 } from '../deps.ts';
+import { Snowflake } from './snowflake.ts';
 
 //@public_api
 /** A Discord User. */

@@ -1,5 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
+import { deferred, Deferred } from '../deps.ts';
+
 function sleep( ms: number ){
 	return new Promise(r=>{setTimeout(r,ms)});
 }
@@ -30,32 +32,31 @@ class Queue<T>
 
 /** An queue which can be used in `for-await-of` to listen for events.  
     Flow rate is how long to wait between event dispatches, used for flow control. */
-export class AsyncEventQueue<T> extends Queue<T>
+export class AsyncEventQueue<T>
 {
 	/** Whether the queue has been exited. */
 	private isDone = false;
 	/** Used to await for a new item. */
-	private newItem = new Promise(r=>0)
-	constructor( private flowRate: number = 0 ){
-		super();
-	}
+	private newItem = deferred();
+	private queue = new Queue();
+	constructor( private flowRate: number = 0 ){}
 	/** Post an event to the queue. */
 	post( item: T ){
-		this.add(item);
-		this.newItem = Promise.resolve();
+		this.queue.add(item);
+		this.newItem.resolve();
 	}
 	/** Stop serving events. */
 	exit(){
 		this.isDone = true;
-		this.newItem = Promise.resolve();
+		this.newItem.resolve();
 	}
 	/** used for for-await-of */
-	private async*[Symbol.asyncIterator](){
+	async*[Symbol.asyncIterator](){
 		while(1){
 			// if there are items in the queue, pop them one by one.
-			if( this.length > 0 ){
+			if( this.queue.length > 0 ){
 				// yield the value
-				yield this.pop()
+				yield this.queue.pop()
 				// wait for the desired time so as to act as 'flow control'
 				if( this.flowRate !== 0 ) await sleep(this.flowRate);
 			}
@@ -64,7 +65,7 @@ export class AsyncEventQueue<T> extends Queue<T>
 				// await next item to arrive in queue, or exit() as it resolve this promise
 				await this.newItem;
 				// reset the promise to be unresolved
-				this.newItem = new Promise(r=>{});
+				this.newItem = deferred();
 			}
 			// if exit() was called this is true, and the generator exits.
 			if( this.isDone ) return;
@@ -72,17 +73,15 @@ export class AsyncEventQueue<T> extends Queue<T>
 	}
 }
 
-// UPGRADE:: api change in future, return then promise with return value of onServed
 // Service queue model: Customers, Services
 // Future optimisation: Fixed length array, use numbers to mark priority. Need to benchmark speed of processing requests.
-// UPGRADE:: (maybe: also change serve to resolve a promise parameter and return that)
-/** A queue where 'customers' wait until their requested services are not busy. */
+/** A queue where 'customers' wait until their requested services are not busy. Return value is that returned in the onServed callback. */
 export class AsyncServiceQueue
 {
 	/** What services are currently busy. */
 	private busyServices: Set<any> = new Set();
 	/** A queue of customers waiting. */
-	private customers: [any[],()=>Promise<unknown>,Promise<unknown>][] = [];
+	private customers: [any[], ()=>Promise<unknown>, Deferred<unknown>][] = [];
 
 	/** Clear services that are no longer being used. */
 	private free( services: any[] ){
@@ -99,7 +98,7 @@ export class AsyncServiceQueue
 					// so [i][0] refer's to their requested services
 					this.free(this.customers[i][0]);
 					// return the result
-					this.customers[i][2] = Promise.resolve(v);
+					this.customers[i][2].resolve(v);
 					// splice here removes one customer
 					this.customers.splice(i,1)
 				});
@@ -118,7 +117,7 @@ export class AsyncServiceQueue
 	async serve<T>( services: any[], onServed: ()=>Promise<T> ): Promise<T> {
 		// if the requested services are not available, put the customer in the cue.
 		if( !this.available(services) ){
-			let uponServed = new Promise<T>(r=>{});
+			let uponServed = deferred<T>();
 			this.customers.push([services, onServed, uponServed]);
 			return uponServed;
 		}
