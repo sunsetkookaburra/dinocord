@@ -19,7 +19,7 @@ class Queue<T>
 		this.queueBuffer.unshift(item); // currently just places at front of array.
 	}
 	/** Remove the next item at the front of the queue. */
-	pop(): T {
+	pop(): T | undefined {
 		// if > 0, there is an item to pop
 		if( this.queueBuffer.length > 0){
 			this.length--;
@@ -62,7 +62,7 @@ export class AsyncEventQueue<T>
 			}
 			// else: there are no items in the queue currently
 			else {
-				// await next item to arrive in queue, or exit() as it resolve this promise
+				// await next item to arrive in queue, or exit() as it resolves this promise
 				await this.newItem;
 				// reset the promise to be unresolved
 				this.newItem = deferred();
@@ -117,9 +117,9 @@ export class AsyncServiceQueue
 	async serve<T>( services: any[], onServed: ()=>Promise<T> ): Promise<T> {
 		// if the requested services are not available, put the customer in the cue.
 		if( !this.available(services) ){
-			let uponServed = deferred<T>();
+			let uponServed = deferred<unknown>();
 			this.customers.push([services, onServed, uponServed]);
-			return uponServed;
+			return uponServed as Deferred<T>;
 		}
 		// else: the customer can be served immediately as the services are available.
 		else {

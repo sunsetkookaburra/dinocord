@@ -8,10 +8,8 @@ export class User
 {
 	/** The User's ID. */
 	readonly id: Snowflake;
-
 	/** The name of the user, e.g. `"name"#1234`. */
 	readonly name: string;
-
 	/** The tag number of the user, e.g. `name#"1234"`. */
 	readonly tag: string;
 

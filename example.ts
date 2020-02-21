@@ -5,17 +5,18 @@ import { createClient } from './mod.ts';
 
 window.onload = async()=>
 {
-	const client = await createClient(Deno.env('TOKEN'));
+	const client = await createClient(Deno.env('TOKEN')!);
 	console.log('Bot Connected:', client);
 	
-	console.log('Bot Belongs To Guilds:');
-	console.log(client.guilds);
+	//console.log('Bot Belongs To Guilds:');
+	//console.log(client.guilds);
 
 	for await (const e of client) {
 		if (e.type === 'message') {
-			await e.reply('Roar!');
+			//await e.reply('Roar!');
+			console.log(e.text);
 		}
 	}
-
+	
 	console.log('Bot Exited.');
 }

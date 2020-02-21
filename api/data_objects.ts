@@ -1,7 +1,9 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-export type Snowflake = string;
-export type ISO8601 = string;
+type NotImplemented<T> = T;
+
+export type Snowflake = string & { isSnowflake: true };
+export type ISO8601 = string & { isISO8601: true };
 
 /** What type of user. */
 export enum UserFlags {
@@ -161,4 +163,59 @@ export interface GatewayPayload
 	s?: number,
 	/** Event Name */
 	t?: string
+}
+
+export type PresenceStatus = 'online' | 'dnd' | 'idle' | 'invisible' | 'offline';
+
+/** Discord Presence Structure */
+export interface Presence {
+	status: PresenceStatus;
+	afk: boolean;
+	since: number | null;
+	game: Activity | null;
+}
+
+/** Discord Activity Structure */
+export interface Activity {
+	type: number;
+	name: string;
+	url?: string;
+}
+
+export enum ActivityTypes {
+	GAME		= 0,
+	STREAMING	= 1,
+	LISTENING	= 2,
+	CUSTOM		= 3
+}
+
+export const ActivityType = {
+	'game': ActivityTypes.GAME,
+	'streaming': ActivityTypes.STREAMING,
+	'listening': ActivityTypes.LISTENING,
+	'custom': ActivityTypes.CUSTOM,
+}
+
+/** NOT COMPLETE */
+export interface GuildObject {
+	id:								Snowflake;
+	name:							string;
+	ownerId:						Snowflake;
+	region:							string;
+	afkTimeout:						number;
+	verificationLevel:				number;
+	defaultMessageNotifications:	number;
+	explicitContentFilter:			number;
+	roles:							NotImplemented<'Role'>[];
+	emojis:							NotImplemented<'Emoji'>[];
+	features:						NotImplemented<'GuildFeature'>[];
+	mfaLevel:						number;
+	icon?:							string;
+	splash?:						string;
+	discovery_splash?:				string;
+	owner?:							boolean;
+	permissions?:					number;
+	afkChannelId?:					Snowflake;
+	embedEnabled?:					boolean;
+	embedChannelId?:				Snowflake;
 }
