@@ -3,6 +3,7 @@
 import { User } from "./user.ts";
 import { UserObject, Snowflake, ActivityType, PresenceStatus, Activity } from "./data_objects.ts";
 import { createClientContext, ClientContext } from "./net.ts";
+import { Message } from "./message.ts";
 
 interface ClientOptions {
 	status?: PresenceStatus;
@@ -13,6 +14,13 @@ interface ClientOptions {
 	}
 }
 
+// will be or'd with other options, like channel update etc
+// need a published list
+type ClientEvent = 
+	(Message & { readonly type: 'message' })/* |
+	(Message & { readonly type: 'channel' }) |
+	(Message & { readonly type: 'message' }) ;*/
+
 class Client extends User {
 	// will have a guilds property
 	private guilds: Map<Snowflake, 'Guild'> = new Map();
@@ -20,8 +28,25 @@ class Client extends User {
 		super(userInit);
 	}
 	async*[Symbol.asyncIterator](){
-		for await( const m of this.ctx.ws.listen() ){
-			yield m;
+		for await( const p of this.ctx.ws.listen() ){
+			// m.op always DISPATCH = 0
+			// switch event name.
+			switch(p.t){
+				case 'READY':
+					console.log('LIB: READY');
+					break;
+				case 'MESSAGE_CREATE':
+					yield {
+						'type': 'message',
+						'id': '212' as Snowflake,
+						'text': p.d['content'],
+						async reply(){}
+					} as ClientEvent
+					break;
+				default:
+					console.log('Unhandled DISPATCH::', p.t);
+					break;
+			}
 		}
 	}
 }

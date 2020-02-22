@@ -3,7 +3,6 @@
 import { WebSocket, isWebSocketCloseEvent, connectWebSocket, WebSocketEvent, LibraryMeta, yamlStringify } from '../deps.ts';
 import { Snowflake, GatewayOpcode, GatewayPayload, Presence } from './data_objects.ts';
 import { AsyncServiceQueue, AsyncEventQueue } from './queue.ts';
-import { Message } from "./message.ts";
 
 async function waitableDate( date: Date ): Promise<void> {
 	let timerId: number;
@@ -112,7 +111,7 @@ class DiscordHTTPClient
 		if( result.headers.has('X-RateLimit-Bucket') ){
 			let bucketId = result.headers.get('X-RateLimit-Bucket') as Snowflake;
 			if( this.buckets.has(bucketId) ){
-				if( path !== this.buckets.get(bucketId)!.path) console.log('AAAAAAAA ROUTE LIMIT PATHS CHANGE !!!!');
+				if( path !== this.buckets.get(bucketId)!.path) console.log('AAAAAAAA RATE LIMIT BUCKET PATHS CHANGE !!!!');
 				this.buckets.get(bucketId)!.limit = Number(result.headers.get('X-RateLimit-Limit'));
 				this.buckets.get(bucketId)!.remaining = Number(result.headers.get('X-RateLimit-Remaining'));
 				this.buckets.get(bucketId)!.reset = Number(result.headers.get('X-RateLimit-Reset'));
@@ -136,9 +135,6 @@ class DiscordHTTPClient
 	}
 }
 
-type ClientEvent = 
-	(Message & { readonly type: 'message' })
-
 class DiscordWSClient
 {
 	private socket: WebSocket = null as unknown as WebSocket;
@@ -155,11 +151,11 @@ class DiscordWSClient
 		this.listener = this.socket.receive();
 		// NEEDS TO BE TIED TO SOCK LISTENER TO CHECK IT ACTUALLY IS HELLO PAYLOAD
 		// receive hello payload
-		let hello = JSON.parse((await this.listener.next()).value);
+		let hello = JSON.parse((await this.listener!.next()).value);
 		this.heart.interval = hello!['d']['heartbeat_interval'];
 		// begin heartbeat
 		this.heartbeat();
-		this.heart.id = setInterval(this.heartbeat, this.heart.interval);
+		this.heart.id = setInterval(this.heartbeat.bind(this), this.heart.interval);
 		// begin sendqueue, because this is a closure, it will keep running in the background even once init returns
 		(async()=>{
 			for await( const p of this.discordSendQueue ){
@@ -191,16 +187,11 @@ class DiscordWSClient
 					this.heart.wasAck = true;
 				}
 				else if( payload.op === GatewayOpcode.DISPATCH ){
-					console.log('================================');
-					console.log(yamlStringify(payload));
-					console.log('--------------------------------');
+					yield payload;
 				}
 				else {
-					yield {
-						type: 'message',
-						id: '',
-						text: msg
-					} as ClientEvent;
+					console.log('================================');
+					console.log(yamlStringify(payload));
 				}
 			}
 			else if( isWebSocketCloseEvent(msg) ){
@@ -234,34 +225,7 @@ class DiscordWSClient
 	}
 	
 }
-// consider as an alternate approach to class
-/*
-async function *createDiscordWSClient(sock: WebSocket){
-	// First time init
-	let sequenceNumber: number = null;
-	const listener = sock.receive();
-	let didReceiveAck = false;
-	// receive hello payload
-	const interval = (await listener.next()).value['d']['heartbeat_interval'];
-	// begin beating heart
-	sock.send(JSON.stringify({op: GatewayOpcode.HEARTBEAT, d: null}));
-	const heartID = setInterval(async()=>{
-		// check if discord replied in time
-		if( !didReceiveAck ){
-			await sock.close(500);
-			clearInterval(heartID);
-		}
-		else {
-			didReceiveAck = false;
-			await sock.send(JSON.stringify({op: GatewayOpcode.HEARTBEAT, d: sequenceNumber}));
-		}
-	}, interval);
 
-	// identify the client.
-
-	// mainloop / listener
-}
-*/
 // Types and Interfaces
 
 type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'

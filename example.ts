@@ -13,8 +13,8 @@ window.onload = async()=>
 
 	for await (const e of client) {
 		if (e.type === 'message') {
-			//await e.reply('Roar!');
-			console.log(e.text);
+			await e.reply('Roar!');
+			console.log('RECV::', e.text);
 		}
 	}
 	

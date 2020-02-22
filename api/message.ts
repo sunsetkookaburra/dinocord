@@ -10,4 +10,7 @@ export class Message
         this.id = "" as Snowflake;
         this.text = ""
     }
+    async reply(msg: string){
+
+    }
 }

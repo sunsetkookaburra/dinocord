@@ -23,6 +23,12 @@ add createObject('ClassName', init: ClassNameObject) or a special Object for cre
 
 need errors!!! and handling
 
+things such as client status need to be tied to client context, so that they are auto updated...
+e.g. client.status = "idle"
+or client.setStatus("idle")
+
+consider getting user details from gateway rather than http
+
 */
 
 export { createClient } from './api/client.ts';

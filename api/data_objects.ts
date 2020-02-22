@@ -141,7 +141,7 @@ export enum GatewayOpcode {
 	/** Request members of a guild.  
 		Client: `Sends` */
 	REQUEST_GUILD_MEMBERS	= 8,
-	/** Client has an ivalid session id.  
+	/** Client has an invalid session id.  
 		Client: `Receives` */
 	INVALID_SESSION			= 9,
 	/** Sent after first connection, contains heartbeat time.  
@@ -162,8 +162,13 @@ export interface GatewayPayload
 	/** Sequence number (for resume / heartbeast) */
 	s?: number,
 	/** Event Name */
-	t?: string
+	t?: DispatchEvents
 }
+
+/** Discord Gatewat Dispatch Events */
+type DispatchEvents =
+	'READY' |
+	'MESSAGE_CREATE'
 
 export type PresenceStatus = 'online' | 'dnd' | 'idle' | 'invisible' | 'offline';
 

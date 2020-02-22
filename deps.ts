@@ -9,6 +9,4 @@ export const LibraryMeta = {
 	version: 'v0.0.1'
 };
 
-export type ISO8601 = string & { isISO8601: true };
-
 //class DiscordError<T extends DiscordErrorKind> extends Error {}

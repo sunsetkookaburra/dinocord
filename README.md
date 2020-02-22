@@ -1,5 +1,9 @@
 ![DinoCord](docs/banner.png)
 
+## News
+A very very basic Gateway/WebSocket implementation can at least listen to messages from Discord!
+Progress will be made by building the blocks necessary to make data cache, transmission and receiving easier.
+
 ## WARNING!
 This is by no means ready, do not use it at all in production. Any functions or properties are likely to change.
 
