@@ -11,10 +11,10 @@ window.onload = async()=>
 	//console.log('Bot Belongs To Guilds:');
 	//console.log(client.guilds);
 
-	for await (const e of client) {
-		if (e.type === 'message') {
-			await e.reply('Roar!');
-			console.log('RECV::', e.text);
+	for await (const event of client) {
+		if (event.type === 'message') {
+			await event.reply('Roar!');
+			console.log('RECV::', event.text);
 		}
 	}
 	

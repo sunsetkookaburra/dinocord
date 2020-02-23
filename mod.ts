@@ -29,6 +29,8 @@ or client.setStatus("idle")
 
 consider getting user details from gateway rather than http
 
+caching needs to maintain the original object, and just update properties
+
 */
 
 export { createClient } from './api/client.ts';

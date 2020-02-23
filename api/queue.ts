@@ -32,14 +32,14 @@ class Queue<T>
 
 /** An queue which can be used in `for-await-of` to listen for events.  
     Flow rate is how long to wait between event dispatches, used for flow control. */
-export class AsyncEventQueue<T>
+export class AsyncEventQueue<T = any>
 {
 	/** Whether the queue has been exited. */
 	private isDone = false;
 	/** Used to await for a new item. */
 	private newItem = deferred();
 	private queue = new Queue();
-	constructor( private flowRate: number = 0 ){}
+	constructor( private flowRate: number = 0, private handler?: (item: T)=>void ){}
 	/** Post an event to the queue. */
 	post( item: T ){
 		this.queue.add(item);
@@ -56,7 +56,7 @@ export class AsyncEventQueue<T>
 			// if there are items in the queue, pop them one by one.
 			if( this.queue.length > 0 ){
 				// yield the value
-				yield this.queue.pop()
+				yield this.queue.pop() as T;
 				// wait for the desired time so as to act as 'flow control'
 				if( this.flowRate !== 0 ) await sleep(this.flowRate);
 			}
@@ -69,6 +69,11 @@ export class AsyncEventQueue<T>
 			}
 			// if exit() was called this is true, and the generator exits.
 			if( this.isDone ) return;
+		}
+	}
+	async run(){
+		for await (const item of this){
+			if( this.handler !== undefined ) this.handler(item);
 		}
 	}
 }

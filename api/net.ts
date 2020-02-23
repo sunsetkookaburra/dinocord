@@ -1,8 +1,9 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { WebSocket, isWebSocketCloseEvent, connectWebSocket, WebSocketEvent, LibraryMeta, yamlStringify } from '../deps.ts';
+import { WebSocket, isWebSocketCloseEvent, connectWebSocket, WebSocketEvent, LibraryMeta, yamlStringify, deferred } from '../deps.ts';
 import { Snowflake, GatewayOpcode, GatewayPayload, Presence } from './data_objects.ts';
 import { AsyncServiceQueue, AsyncEventQueue } from './queue.ts';
+import { dinoLog } from './debug.ts';
 
 async function waitableDate( date: Date ): Promise<void> {
 	let timerId: number;
@@ -16,6 +17,7 @@ async function waitableDate( date: Date ): Promise<void> {
 	});
 }
 
+/*
 export async function createClientContext( token: string, initialPresence?: Presence ){
 	let http = new DiscordHTTPClient(token);
 	let gateway: string = (await http.requestJson<any>('GET','/gateway'))['url'];
@@ -23,7 +25,7 @@ export async function createClientContext( token: string, initialPresence?: Pres
 	await ws.init(initialPresence)
 	let ctx = new ClientContext(http, ws);
 	return ctx;
-}
+}*/
 
 export class ClientContext {
 	// any time a data object is created, cache it
@@ -38,7 +40,7 @@ export class ClientContext {
 }
 
 // done as far as a working solution, just a bit of polish
-class DiscordHTTPClient
+export class DiscordHTTPClient
 {
 	static Endpoint = 'https://discordapp.com/api/v6';
 	static UserAgent = `DiscordBot (${LibraryMeta.url}, ${LibraryMeta.version}) Deno/${Deno.version.deno}`;
@@ -80,6 +82,7 @@ class DiscordHTTPClient
 			}
 		}
 		// serve the request
+		// route.resources is passed as require resources, the callback is called when they first become available
 		let result = await this.queue.serve<Response>(route.resources, async()=>{
 			let body: string | null = null; // consider making Uint8Array
 			if( options === undefined){}
@@ -135,7 +138,122 @@ class DiscordHTTPClient
 	}
 }
 
-class DiscordWSClient
+class Heart {
+	private timerID: number | null = null;
+	private wasAck: boolean = false;
+	constructor(private onBeat: () => void, private onStop?: () => void){}
+	start(interval: number){
+		if (this.timerID !== null) clearInterval(this.timerID);
+		this.onBeat();
+		this.timerID = setInterval(()=>{
+			if (!this.wasAck) this.stop();
+			else this.onBeat();
+			this.wasAck = false; //reset flag
+		}, interval);
+	}
+	acknowledge(){
+		this.wasAck = true;
+	}
+	stop(){
+		if (this.timerID !== null) clearInterval(this.timerID);
+		this.wasAck = false;
+	}
+}
+
+export class DiscordWSClient {
+	// "subscribeable" queue of events (limit chance of mucking up async generator code)
+	public eventQueue: AsyncEventQueue<GatewayPayload>;
+	private gateway: string;
+	private token: string;
+	private discordEndpointQueue: AsyncEventQueue<GatewayPayload>;
+	private socket: WebSocket | null = null;
+	private listener: AsyncIterableIterator<WebSocketEvent> | null = null;
+	private heart: Heart;
+	private sequenceID: number | null = null;
+	private readyEventReceived = deferred<GatewayPayload>()
+
+	constructor( token: string, gateway: string ){
+		this.gateway = gateway + '?v=6&encoding=json';
+		this.token = token;
+		this.discordEndpointQueue = new AsyncEventQueue<GatewayPayload>(550, async(payload)=>{
+			dinoLog('debug', 'endpoint sending:'+JSON.stringify(payload));
+			if( !this.socket?.isClosed ) this.socket!.send(JSON.stringify(payload));
+			else this.discordEndpointQueue.exit();
+		});
+		this.discordEndpointQueue.run();
+		this.eventQueue = new AsyncEventQueue();
+		this.heart = new Heart(()=>{
+			// send heartbeat to discord
+			dinoLog('debug', 'Sent heartbeat.');
+			this.sendPayload({
+				op: GatewayOpcode.HEARTBEAT,
+				d: this.sequenceID
+			});
+		}, this.disconnect.bind(this)); // bind to allow using class vars. this will break the websocket on a disconnection
+	}
+	sendPayload(p: GatewayPayload){
+		this.discordEndpointQueue.post(p);
+	}
+	// init socket, begin heartbeat, then return
+	async init(){
+		this.socket = await connectWebSocket(this.gateway);
+		this.listener = this.socket.receive();
+		let firstMsg = JSON.parse((await this.listener.next()).value) as GatewayPayload;
+		if (firstMsg.op !== GatewayOpcode.HELLO) dinoLog('critical', 'Expected HELLO as first gateway message, received the following instead: '+JSON.stringify(firstMsg.op));
+		this.heart.start(firstMsg.d['heartbeat_interval']);
+		dinoLog('info', 'WebSocket opened and heartbeating.');
+		// run message loop
+		this.messageLoop();
+	}
+	// send identify payload, then await and return READY
+	async identify(presenceInit: Presence){
+		this.sendPayload({
+			op: GatewayOpcode.IDENTIFY,
+			d: {
+				'token': this.token,
+				'properties': {
+					'$os': Deno.build.os,
+					'$browser': 'dinocord',
+					'$device': 'dinocord'
+				},
+				'presence': presenceInit
+			}
+		});
+		return this.readyEventReceived;
+	}
+	async disconnect(){
+		this.socket!.close(500);
+	}
+	private async messageLoop(){
+		let payload: GatewayPayload;
+		for await (const msg of this.listener!){
+			if( typeof msg === "string" ){
+				payload = JSON.parse(msg);
+				if( payload.op === GatewayOpcode.HEARTBEAT_ACK ){
+					dinoLog('debug', 'Received heartbeat ACK.');
+					this.heart.acknowledge();
+				}
+				else if( payload.t === 'READY' ){
+					this.readyEventReceived.resolve(payload);
+				}
+				else if( payload.op === GatewayOpcode.DISPATCH ){
+					this.eventQueue.post(payload);
+				}
+				else {
+					dinoLog('debug', '================================');
+					dinoLog('debug', yamlStringify(payload));
+				}
+			}
+			else if( isWebSocketCloseEvent(msg) ){
+				// log closure of socket
+				dinoLog('info', 'WebSocket connection closed.');
+				break;
+			}
+		}
+	}
+}
+
+class OldDiscordWSClient
 {
 	private socket: WebSocket = null as unknown as WebSocket;
 	private sessionID: string | null = null;
@@ -157,6 +275,7 @@ class DiscordWSClient
 		this.heartbeat();
 		this.heart.id = setInterval(this.heartbeat.bind(this), this.heart.interval);
 		// begin sendqueue, because this is a closure, it will keep running in the background even once init returns
+		// consider use of a handler on AsyncEventQueue
 		(async()=>{
 			for await( const p of this.discordSendQueue ){
 				await this.socket.send(JSON.stringify(p));
@@ -237,7 +356,14 @@ interface Bucket {
 	path:		string;
 }
 
-type RequestOptions = ({type: 'none'} | {type: 'json', body: any} | {type: 'form', body: any, fileMimeType: string}) & {substitutions?: {[key: string]: string}}
+// convert to an interface
+type RequestOptions = (
+		{type: 'none'} |
+		{type: 'json', body: any} |
+		{type: 'form', body: any, fileMimeType: string}
+	) & 
+		{substitutions?: {[key: string]: string}}
+
 interface Route {
 	url: string;
 	resources: string[];
