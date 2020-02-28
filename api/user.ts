@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { Snowflake, UserObject } from './data_objects.ts'
+import { Snowflake, UserObject } from './data_object/mod.ts'
 
 //@public_api
 /** A Discord User. */

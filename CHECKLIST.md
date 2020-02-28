@@ -1,4 +1,4 @@
-# API Operations Checklist
+# API Operations Checklist (FULL)
 - [x] Rate Limiting
 ## HTTP REST
 #### Client:

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
 import { WebSocket, isWebSocketCloseEvent, connectWebSocket, WebSocketEvent, LibraryMeta, yamlStringify, deferred } from '../deps.ts';
-import { Snowflake, GatewayOpcode, GatewayPayload, Presence } from './data_objects.ts';
+import { Snowflake, GatewayOpcode, GatewayPayload, Presence } from './data_object/mod.ts';
 import { AsyncServiceQueue, AsyncEventQueue } from './queue.ts';
 import { dinoLog } from './debug.ts';
 
@@ -156,6 +156,7 @@ class Heart {
 	}
 	stop(){
 		if (this.timerID !== null) clearInterval(this.timerID);
+		if (this.onStop !== undefined) this.onStop();
 		this.wasAck = false;
 	}
 }
@@ -170,7 +171,8 @@ export class DiscordWSClient {
 	private listener: AsyncIterableIterator<WebSocketEvent> | null = null;
 	private heart: Heart;
 	private sequenceID: number | null = null;
-	private readyEventReceived = deferred<GatewayPayload>()
+	private readyEventReceived = deferred<GatewayPayload>();
+	private sessionID: string | null = null;
 
 	constructor( token: string, gateway: string ){
 		this.gateway = gateway + '?v=6&encoding=json';
@@ -189,7 +191,7 @@ export class DiscordWSClient {
 				op: GatewayOpcode.HEARTBEAT,
 				d: this.sequenceID
 			});
-		}, this.disconnect.bind(this)); // bind to allow using class vars. this will break the websocket on a disconnection
+		}, this.gatewayClose); // bind to allow using class vars. this will break the websocket on a disconnection
 	}
 	sendPayload(p: GatewayPayload){
 		this.discordEndpointQueue.post(p);
@@ -221,26 +223,40 @@ export class DiscordWSClient {
 		});
 		return this.readyEventReceived;
 	}
-	async disconnect(){
-		this.socket!.close(500);
-	}
 	private async messageLoop(){
 		let payload: GatewayPayload;
 		for await (const msg of this.listener!){
 			if( typeof msg === "string" ){
+				/*
+				WebSocket Handled Events:
+				IDENTIFY
+				RESUME
+				HEARTBEAT
+				
+				HELLO
+				READY
+				RESUMED
+				RECONNECT
+				INVALID SESSION
+				
+				*/
 				payload = JSON.parse(msg);
 				if( payload.op === GatewayOpcode.HEARTBEAT_ACK ){
 					dinoLog('debug', 'Received heartbeat ACK.');
 					this.heart.acknowledge();
 				}
 				else if( payload.t === 'READY' ){
+					dinoLog('debug', 'Received READY');
 					this.readyEventReceived.resolve(payload);
+					this.sessionID = payload.d['session_id'];
 				}
 				else if( payload.op === GatewayOpcode.DISPATCH ){
+					dinoLog('debug', 'Received DISPATCH::'+payload.t);
 					this.eventQueue.post(payload);
 				}
 				else {
 					dinoLog('debug', '================================');
+					dinoLog('debug', `Unhandled Opcode: ${payload.op}\n`);
 					dinoLog('debug', yamlStringify(payload));
 				}
 			}
@@ -251,8 +267,13 @@ export class DiscordWSClient {
 			}
 		}
 	}
+	async gatewayClose(code = 4000){
+		dinoLog('debug', `Received gateway close code: ${code}`);
+		this.socket!.close(code);
+	}
 }
 
+/*
 class OldDiscordWSClient
 {
 	private socket: WebSocket = null as unknown as WebSocket;
@@ -343,7 +364,7 @@ class OldDiscordWSClient
 		this.discordSendQueue.post(payload);
 	}
 	
-}
+}*/
 
 // Types and Interfaces
 

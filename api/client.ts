@@ -1,9 +1,10 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
 import { User } from "./user.ts";
-import { UserObject, Snowflake, ActivityType, PresenceStatus, Presence, Activity } from "./data_objects.ts";
+import { UserObject, Snowflake, ActivityType, PresenceStatus, Presence, Activity } from "./data_object/mod.ts";
 import { ClientContext, DiscordHTTPClient, DiscordWSClient } from "./net.ts";
 import { Message } from "./message.ts";
+import { Guild } from "./guild.ts";
 import { initLogging, LoggingLevel } from './debug.ts';
 
 interface ClientOptions extends Record<string, any> {
@@ -20,8 +21,8 @@ interface ClientOptions extends Record<string, any> {
 // need a published list
 type ClientEvent = 
 	(Message & { readonly type: 'message' }) |
-	(User & { readonly type: 'user' }) /*|
-	(Message & { readonly type: 'message' }) ;*/
+	(User & { readonly type: 'user' }) |
+	(Guild & { readonly type: 'guild' }) ;
 
 class Client extends User {
 	// will have a guilds property
@@ -34,9 +35,8 @@ class Client extends User {
 			// m.op always DISPATCH = 0
 			// switch event name.
 			switch(p.t){
-				case 'READY':
-					console.log('LIB: READY');
-					// This may be used to get userdata instead of http request
+				case 'GUILD_CREATE':
+					
 					break;
 				case 'MESSAGE_CREATE':
 					yield {
@@ -95,23 +95,20 @@ export async function createClient( token: string, options?: ClientOptions ) {
 	const wsClient = new DiscordWSClient(token, gateway);
 	await wsClient.init();
 
-	// handlers for things such as guilds etc.
-	const readyData = await wsClient.identify(activity);
-
 	// create context, this can be passed to things such as message constructors to allow for replies.
 	const ctx = new ClientContext(httpClient, wsClient);
 
-	const userInit = await ctx.http.requestJson<UserObject>('GET', '/users/@me');
+	// handlers for things such as guilds etc.
+	const readyData = await wsClient.identify(activity);
+	const userInit = readyData.d['user'];
+
 	/*
-	// TO BE IMPLEMENTED VIA GATEWAY
 	const guilds: GuildMap = new Map();
 	const userGuildsIn = await ctx.http.requestJson<GuildObject[]>('GET', '/users/@me/guilds');
 	for (let i = 0; i < userGuildsIn.length; i++) {
 		guilds.set(userGuildsIn[i].id, new Guild(userGuildsIn[i]));
 	}
 	*/
-
-	// await a deferred promise which resolves to the ready payload.
 
 	const client = new Client(userInit, ctx);
 	return client;
