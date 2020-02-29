@@ -15,9 +15,9 @@ const client = await createClient('token');
 console.log('Bot Connected:', client);
 
 for await (const ctx of client) {
-    if (ctx.event === 'MESSAGE_CREATE') {
-		await ctx.reply('Roar! You said: '+ ctx.text);
-    }
+  if (ctx.event === 'MESSAGE_CREATE') {
+    await ctx.reply('Roar! You said: '+ ctx.text);
+  }
 }
 ```
 
