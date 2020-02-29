@@ -30,6 +30,5 @@ See how far along the implementation is [here](CHECKLIST.md).-->
 ## Contributing
 I'm not currently accepting contributions through pull requests.
 Once I'm happy with a functional state, then I might.
-At that time I will also open the issue tracker.
 
 ###### Est. 20th Jan 2020
