@@ -1,13 +1,14 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
+import { deferred } from "../deps.ts";
 import { User } from "./user.ts";
 import { DispatchEvent_All, UserObject, Snowflake, ActivityType, PresenceStatus, Presence, Activity } from "./data_object/mod.ts";
 import { ClientContext, DiscordHTTPClient, DiscordWSClient } from "./net.ts";
 import { Message } from "./message.ts";
 import { Guild } from "./guild.ts";
-import { initLogging, LoggingLevel } from './debug.ts';
+import { initLogging, LoggingLevel, dinoLog } from './debug.ts';
 
-interface ClientOptions extends Record<string, any> {
+interface ClientOptions {
 	status?: PresenceStatus;
 	activity?: {
 		type: keyof typeof ActivityType;
@@ -33,18 +34,19 @@ class Client extends User {
 	constructor( userInit: UserObject, private ctx: ClientContext ){
 		super(userInit);
 	}
-	async*[Symbol.asyncIterator](){
+	private async*[Symbol.asyncIterator](){
 		for await( const p of this.ctx.ws.eventQueue ){
 			// m.op always DISPATCH = 0
 			// switch event name.
 			switch(p.t){
 				case 'GUILD_CREATE':
+					yield CreateClientEvent(new Guild(this.ctx, p.d, deferred()), "GUILD_CREATE");
 					break;
 				case 'MESSAGE_CREATE':
-					if (p.d.author?.id !== this.id) yield CreateClientEvent(new Message(this.ctx, p.d), "MESSAGE_CREATE");
+					if (p.d.author?.id !== this.id) yield CreateClientEvent(new Message(this.ctx, p.d, deferred()), 'MESSAGE_CREATE');
 					break;
 				default:
-					console.log('Unhandled DISPATCH::', p.t);
+					dinoLog('debug', `[Client@${Deno.inspect(this)}] ___UNHANDLED___DISPATCH::${p.t}`);
 					break;
 			}
 		}
@@ -53,17 +55,17 @@ class Client extends User {
 }
 
 // this should handle creation of client context, not another function
-export async function createClient( token: string, options?: ClientOptions ) {
+export async function createClient( token: string, options: ClientOptions = {} ) {
 	// parse options
 	// create default options.
 	const defaultOptions: ClientOptions = {
 		'activity': undefined,
 		'status': 'online',
-		'logLevel': 'debug'
+		'logLevel': 'warning'
 	};
 	// add new properties to options.
-	for( let k of Object.keys(options||{}) ){
-		defaultOptions[k] = options![k];
+	for( let k of Object.keys(options) ){
+		(defaultOptions as any)[k] = (options as any)[k];
 	}
 
 	// create game/activity for discord
@@ -109,6 +111,7 @@ export async function createClient( token: string, options?: ClientOptions ) {
 	*/
 
 	const client = new Client(userInit, ctx);
+	dinoLog('debug', '[createClient] Ready.')
 	return client;
 }
 

@@ -1,12 +1,15 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 import { createClient } from './mod.ts';
 
-const client = await createClient(Deno.env('TOKEN')!);
+const client = await createClient(Deno.env('TOKEN')!, {
+	logLevel: 'debug'
+});
+
 console.log('Bot Connected:', client);
 
 for await (const ctx of client) {
 	if (ctx.event === 'MESSAGE_CREATE') {
-		ctx.reply('Roar! You said: '+ ctx.text);
+		await ctx.reply(`***Roar!*** ${ctx.author} said:\n>>> ${ctx.text}`);
 	}
 }
 

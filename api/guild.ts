@@ -1,19 +1,42 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
-import { Snowflake, GuildObject } from "./data_object/mod.ts";
+import { Deferred } from '../deps.ts';
+import { Snowflake } from "./data_object/mod.ts";
+import { ClientContext } from './net.ts';
 
 export class Guild
 {
-    public id: Snowflake;
-    public name: string;
-    public icon: string | null;
+    get id(){return this.data.id};
+    get name(){return this.data.name};
     //public channels: Channel[]
-
-    constructor( guildInit: GuildObject ){
-        this.id = guildInit.id;
-        this.name = guildInit.name;
-        this.icon = guildInit.icon || null;
+    constructor( private ctx: ClientContext, private data: GuildObject, onInit: Deferred<void> ){
+		ctx.cache.set(data.id, this);
+		//initialiseObjects(ctx, [
+		//	[data.ownerId, 'user']
+		//]).then(onInit.resolve);
     }
 }
 
-export type GuildMap = Map<Snowflake, Guild>;
+/** NOT COMPLETE */
+interface GuildObject {
+	id:								Snowflake;
+	name:							string;
+	ownerId:						Snowflake;
+	region:							string;
+	afkTimeout:						number;
+	verificationLevel:				number;
+	defaultMessageNotifications:	number;
+	explicitContentFilter:			number;
+	roles:							'Role'[];
+	emojis:							'Emoji'[];
+	features:						'GuildFeature'[];
+	mfaLevel:						number;
+	icon?:							string;
+	splash?:						string;
+	discovery_splash?:				string;
+	owner?:							boolean;
+	permissions?:					number;
+	afkChannelId?:					Snowflake;
+	embedEnabled?:					boolean;
+	embedChannelId?:				Snowflake;
+}

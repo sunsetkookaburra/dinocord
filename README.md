@@ -16,7 +16,7 @@ console.log('Bot Connected:', client);
 
 for await (const ctx of client) {
   if (ctx.event === 'MESSAGE_CREATE') {
-    await ctx.reply('Roar! You said: '+ ctx.text);
+    await ctx.reply(`***Roar!*** ${ctx.author} said:\n>>> ${ctx.text}`);
   }
 }
 ```

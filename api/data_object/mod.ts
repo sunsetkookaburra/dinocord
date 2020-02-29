@@ -235,27 +235,3 @@ export const ActivityType = {
 	'listening': ActivityTypes.LISTENING,
 	'custom': ActivityTypes.CUSTOM,
 }
-
-/** NOT COMPLETE */
-export interface GuildObject {
-	id:								Snowflake;
-	name:							string;
-	ownerId:						Snowflake;
-	region:							string;
-	afkTimeout:						number;
-	verificationLevel:				number;
-	defaultMessageNotifications:	number;
-	explicitContentFilter:			number;
-	roles:							NotImplemented<'Role'>[];
-	emojis:							NotImplemented<'Emoji'>[];
-	features:						NotImplemented<'GuildFeature'>[];
-	mfaLevel:						number;
-	icon?:							string;
-	splash?:						string;
-	discovery_splash?:				string;
-	owner?:							boolean;
-	permissions?:					number;
-	afkChannelId?:					Snowflake;
-	embedEnabled?:					boolean;
-	embedChannelId?:				Snowflake;
-}

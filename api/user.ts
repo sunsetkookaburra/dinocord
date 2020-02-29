@@ -17,11 +17,14 @@ export class User
 		this.id 	= userInit.id;
 		this.name 	= userInit.username;
 		this.tag 	= userInit.discriminator;
-
-		this[Deno.symbols.customInspect]; // Reference so typescript outputs the property.
 	}
 
 	private [Deno.symbols.customInspect]() {
 		return this.name + '#' + this.tag;
+	}
+
+	private [Symbol.toPrimitive](hint: string) {
+		if( hint === 'string' || hint === 'default' ) return this[Deno.symbols.customInspect]();
+		return null;
 	}
 }

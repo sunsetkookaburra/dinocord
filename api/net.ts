@@ -39,7 +39,36 @@ export class ClientContext {
 	}
 }
 
+async function initialiseObjects(ctx: ClientContext, arr: ([Snowflake, 'channel'|'guild'|'user']|null)[]){
+	for( let k of arr ){
+		if( !k || !k[0] ) continue;
+		if(!ctx.cache.has(k[0])){
+			let o: any;
+			if( k[1] === 'channel' ){
+				o = await ctx.http.requestJson('GET', '/channels/{channel.id}', {
+					substitutions: { '{channel.id}': k[0] }
+				});
+				ctx.cache.set(k[0], o);
+			}
+			else if( k[1] === 'guild' ){
+				o = await ctx.http.requestJson('GET', '/guilds/{guild.id}', {
+					substitutions: { '{guild.id}': k[0] }
+				});
+				ctx.cache.set(k[0], o);
+			}
+			else if( k[1] === 'user' ){
+				o = await ctx.http.requestJson('GET', '/users/{user.id}', {
+					substitutions: { '{user.id}': k[0] }
+				});
+				ctx.cache.set(k[0], o);
+			}
+		}
+	}
+}
+
 // done as far as a working solution, just a bit of polish
+// queue needs to be reimplemented
+// need an endpoints property
 export class DiscordHTTPClient
 {
 	static Endpoint = 'https://discordapp.com/api/v6';
@@ -53,6 +82,7 @@ export class DiscordHTTPClient
 			['User-Agent', DiscordHTTPClient.UserAgent],
 			['X-RateLimit-Precision', 'second'],
 		]);
+		dinoLog('debug', '[HTTPClient] Ready.');
 	}
 	static route(path: string, substitutions?: {[key: string]: string} ): Route {
 		return {
@@ -68,9 +98,9 @@ export class DiscordHTTPClient
 			})()
 		}
 	}
-	async request( method: HTTPMethod, path: string, options?: RequestOptions ){
+	async request( method: HTTPMethod, path: string, options: RequestOptions = {} ){
 		// format path for api
-		let route = DiscordHTTPClient.route(path, options?.substitutions);
+		let route = DiscordHTTPClient.route(path, options.substitutions);
 		// check bucket
 		for( let [key, bucket] of this.buckets ){
 			// if bucket low, wait until refill
@@ -87,8 +117,7 @@ export class DiscordHTTPClient
 		// route.resources is passed as require resources, the callback is called when they first become available
 		let result = await this.queue.serve<Response>(route.resources, async()=>{
 			let body: string | null = null; // consider making Uint8Array
-			if( options === undefined){}
-			else if( options.type === 'json' ){
+			if( options.type === 'json' ){
 				this.headers.set('Content-Type', 'application/json');
 				body = JSON.stringify(options.body);
 			}
@@ -131,11 +160,11 @@ export class DiscordHTTPClient
 				});
 			}
 		}
-		dinoLog('debug', 'Sent HTTP Request: '+method+' '+route.url);
+		dinoLog('debug', `[HTTPClient] Content-Type: ${options?.type} ${method} ${route.url}`);
 		return result;
 	}
 	// Returns result as an object.
-	async requestJson<T>( method: HTTPMethod, path: string, options?: RequestOptions ){
+	async requestJson<T>( method: HTTPMethod, path: string, options: RequestOptions = {} ){
 		const r = await this.request(method, path, options);
 		return r.json() as Promise<T>;
 	}
@@ -144,8 +173,10 @@ export class DiscordHTTPClient
 class Heart {
 	private timerID: number | null = null;
 	private wasAck: boolean = false;
+	private currentInterval = 50000;
 	constructor(private onBeat: () => void, private onStop?: () => void){}
 	start(interval: number){
+		this.currentInterval = interval;
 		if (this.timerID !== null) clearInterval(this.timerID);
 		this.onBeat();
 		this.timerID = setInterval(()=>{
@@ -154,9 +185,13 @@ class Heart {
 			this.wasAck = false; //reset flag
 		}, interval);
 	}
+	beatExtra(){
+		this.onBeat();
+	}
 	acknowledge(){
 		this.wasAck = true;
 	}
+	// return last internval
 	stop(){
 		if (this.timerID !== null) clearInterval(this.timerID);
 		if (this.onStop !== undefined) this.onStop();
@@ -181,32 +216,36 @@ export class DiscordWSClient {
 		this.gateway = gateway + '?v=6&encoding=json';
 		this.token = token;
 		this.discordEndpointQueue = new AsyncEventQueue<GatewayPayload>(550, async(payload)=>{
-			dinoLog('debug', 'endpoint sending:'+JSON.stringify(payload));
+			dinoLog('debug', `[WSClient@${this.sessionID}] SEND::OP::${GatewayOpcode[payload.op]}`);
 			if( !this.socket?.isClosed ) this.socket!.send(JSON.stringify(payload));
 			else this.discordEndpointQueue.exit();
 		});
-		this.discordEndpointQueue.run();
 		this.eventQueue = new AsyncEventQueue();
 		this.heart = new Heart(()=>{
 			// send heartbeat to discord
-			dinoLog('debug', 'Sent heartbeat.');
+			//dinoLog('debug', `[WSClient@${this.sessionID}] SEND::OP::HEARTBEAT`);
 			this.sendPayload({
 				op: GatewayOpcode.HEARTBEAT,
 				d: this.sequenceID
 			});
 		}, this.gatewayClose); // bind to allow using class vars. this will break the websocket on a disconnection
+		dinoLog('debug', '[WSClient] Created.');
 	}
 	sendPayload(p: GatewayPayload){
 		this.discordEndpointQueue.post(p);
 	}
 	// init socket, begin heartbeat, then return
 	async init(){
+		// figure out how to 'reboot'
+		//this.readyEventReceived = deferred<GatewayPayload>();
+		this.discordEndpointQueue.run();
 		this.socket = await connectWebSocket(this.gateway);
 		this.listener = this.socket.receive();
 		let firstMsg = JSON.parse((await this.listener.next()).value) as GatewayPayload;
-		if (firstMsg.op !== GatewayOpcode.HELLO) dinoLog('critical', 'Expected HELLO as first gateway message, received the following instead: '+JSON.stringify(firstMsg.op));
+		if (firstMsg.op !== GatewayOpcode.HELLO) dinoLog('critical', `[WSClient] Expected HELLO as 1st message, but received: ${GatewayOpcode[firstMsg.op]}`);
 		this.heart.start(firstMsg.d['heartbeat_interval']);
-		dinoLog('info', 'WebSocket opened and heartbeating.');
+		dinoLog('info', '[WSClient] Opened and heartbeating.');
+		dinoLog('debug', '[WSClient] Started.');
 		// run message loop
 		this.messageLoop();
 	}
@@ -230,144 +269,51 @@ export class DiscordWSClient {
 		let payload: GatewayPayload;
 		for await (const msg of this.listener!){
 			if( typeof msg === "string" ){
-				/*
-				WebSocket Handled Events:
-				IDENTIFY
-				RESUME
-				HEARTBEAT
-				
-				HELLO
-				READY
-				RESUMED
-				RECONNECT
-				INVALID SESSION
-				
-				*/
 				payload = JSON.parse(msg);
 				if( payload.op === GatewayOpcode.HEARTBEAT_ACK ){
-					dinoLog('debug', 'Received heartbeat ACK.');
+					dinoLog('debug', `[WSClient@${this.sessionID}] RECV::OP::ACK`);
 					this.heart.acknowledge();
 				}
+				else if( payload.op === GatewayOpcode.HEARTBEAT ){
+					dinoLog('debug', `[WSClient@${this.sessionID}] SEND::OP::HEARTBEAT EXTRA`);
+					this.heart.beatExtra();
+				}
 				else if( payload.t === 'READY' ){
-					dinoLog('debug', 'Received READY');
+					dinoLog('debug', `[WSClient@${this.sessionID}] RECV::OP::DISPATCH::READY`);
 					this.readyEventReceived.resolve(payload);
 					this.sessionID = payload.d['session_id'];
 				}
 				else if( payload.op === GatewayOpcode.DISPATCH ){
-					dinoLog('debug', 'Received DISPATCH::'+payload.t);
+					dinoLog('debug', `[WSClient@${this.sessionID}] RECV::OP::DISPATCH::${payload.t}`);
 					this.eventQueue.post(payload);
 				}
+				else if( payload.op === GatewayOpcode.INVALID_SESSION ){
+					dinoLog('critical', `[WSClient@${this.sessionID}] RECV::OP::INVALID_SESSION`);
+					this.gatewayClose();
+				}
+				else if( payload.op === GatewayOpcode.RECONNECT ){
+					dinoLog('debug', `[WSClient@${this.sessionID}] ___UNHANDLED___RECV::OP::RECONNECT`);
+				}
 				else {
-					dinoLog('debug', '================================');
-					dinoLog('debug', `Unhandled Opcode: ${payload.op}\n`);
-					dinoLog('debug', yamlStringify(payload));
+					dinoLog('debug', `[WSClient@${this.sessionID}] ___UNHANDLED___RECV::OP::${GatewayOpcode[payload.op]}`);
 				}
 			}
 			else if( isWebSocketCloseEvent(msg) ){
 				// log closure of socket
-				dinoLog('info', 'WebSocket connection closed.');
+				dinoLog('info', `[WSClient@${this.sessionID}] Socket closed.`);
 				break;
 			}
 		}
 	}
 	async gatewayClose(code = 4000){
-		dinoLog('debug', `Received gateway close code: ${code}`);
+		dinoLog('debug', `[WSClient@${this.sessionID}] WSClient->gatewayClose(${code})`);
+		this.discordEndpointQueue.exit();
 		this.socket!.close(code);
 	}
+	public close(){
+		this.gatewayClose();
+	}
 }
-
-/*
-class OldDiscordWSClient
-{
-	private socket: WebSocket = null as unknown as WebSocket;
-	private sessionID: string | null = null;
-	private heart = {id: null as unknown as number, interval: 0, wasAck: true};
-	private sequenceID: number | null = null;
-	private listener: AsyncIterableIterator<WebSocketEvent> | null = null;
-	private discordSendQueue = new AsyncEventQueue<GatewayPayload>(550);
-	constructor( private gateway: string, private token: string ){
-		this.gateway = gateway + '?v=6&encoding=json';
-	}
-	async init( initialPresence?: Presence ){
-		this.socket = await connectWebSocket(this.gateway);
-		this.listener = this.socket.receive();
-		// NEEDS TO BE TIED TO SOCK LISTENER TO CHECK IT ACTUALLY IS HELLO PAYLOAD
-		// receive hello payload
-		let hello = JSON.parse((await this.listener!.next()).value);
-		this.heart.interval = hello!['d']['heartbeat_interval'];
-		// begin heartbeat
-		this.heartbeat();
-		this.heart.id = setInterval(this.heartbeat.bind(this), this.heart.interval);
-		// begin sendqueue, because this is a closure, it will keep running in the background even once init returns
-		// consider use of a handler on AsyncEventQueue
-		(async()=>{
-			for await( const p of this.discordSendQueue ){
-				await this.socket.send(JSON.stringify(p));
-			}
-		})();
-		// identify the client.
-		this.sendPayload({
-			op: GatewayOpcode.IDENTIFY,
-			d: {
-				'token': this.token,
-				'properties': {
-					'$os': Deno.build.os,
-					'$browser': 'dinocord',
-					'$device': 'dinocord'
-				},
-				'presence': initialPresence
-			}
-		});
-	}
-	// needs to handle resume
-	async *listen(){
-		// mainloop / listener
-		let payload: GatewayPayload | null = null;
-		for await( const msg of this.listener! ){
-			if( typeof msg === "string" ){
-				payload = this.decodePayload(msg);
-				if( payload.op === GatewayOpcode.HEARTBEAT_ACK ){
-					this.heart.wasAck = true;
-				}
-				else if( payload.op === GatewayOpcode.DISPATCH ){
-					yield payload;
-				}
-				else {
-					console.log('================================');
-					console.log(yamlStringify(payload));
-				}
-			}
-			else if( isWebSocketCloseEvent(msg) ){
-				// log closure of socket
-				break;
-			}
-		}
-	}
-	private async heartbeat(){
-		// check if discord replied in time
-		if( !this.heart.wasAck ){
-			this.discordSendQueue.exit();
-			clearInterval(this.heart.id);
-			await this.socket.close(500);
-		}
-		else {
-			// add ack to sendQueue
-			this.heart.wasAck = false;
-			this.sendPayload({
-				op: GatewayOpcode.HEARTBEAT,
-				d: this.sequenceID
-			});
-		}
-	}
-	private decodePayload(msg: string){
-		return (JSON.parse(msg) as GatewayPayload)
-	}
-	// recognise hard limit of 4096 bytes for a payload
-	sendPayload( payload: GatewayPayload ) {
-		this.discordSendQueue.post(payload);
-	}
-	
-}*/
 
 // Types and Interfaces
 
@@ -381,12 +327,12 @@ interface Bucket {
 }
 
 // convert to an interface
-type RequestOptions = (
-		{type: 'none'} |
-		{type: 'json', body: any} |
-		{type: 'form', body: any, fileMimeType: string}
-	) & 
-		{substitutions?: {[key: string]: string}}
+interface RequestOptions {
+	type?: 'json' | 'form';
+	body?: any;
+	fileMimeType?: string;
+	substitutions?: Record<string, string>;
+}
 
 interface Route {
 	url: string;

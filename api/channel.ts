@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 import { Snowflake } from './data_object/mod.ts';
 
-export class Channel {
+class Channel {
     public type: ChannelTypes = 'generic';
     public id: Snowflake = this.init.id;
     public guild: Guild;
