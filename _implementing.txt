@@ -13,7 +13,7 @@
  - [ ] DiscordCache: Map<Snowflake, Object>: Caches all objects inbound in discord.
     - [ ] Comments
 
- - [ ] ClientContext: Programming Interface
+ - [x] ClientContext: Programming Interface
     => All current information, acts as the internal client data controller
 
  - [ ] Client: User Interface

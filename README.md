@@ -1,22 +1,12 @@
 ![DinoCord](docs/banner.png)
 
-## News
-A very very basic Gateway/WebSocket implementation can at least listen to messages from Discord!
-Progress will be made by building the blocks necessary to make data cache, transmission and receiving easier.
-
 ## WARNING!
-This is by no means ready, do not use it at all in production. Any functions or properties are likely to change.
-
-The events system does not work yet, currently the library is only REST.
-I did get a prototype Websocket connection working, so it won't be long until you can listen for messages.
-
-Spelling for library functions is in UK/AU English, hence the appearance of "colour" and not "color".
+This library is not ready; do not use it at all in production. Any names are almost certainly going to change.
 
 ## About
 A Discord API Library for Deno
 
 ## Creating your first bot.
-Unfortunately this isn't working entirely *yet*, Websockets need to be implemented for the for-await events to work.
 ```js
 import { createClient } from 'https://deno.land/x/dinocord/mod.ts';
 
@@ -24,19 +14,15 @@ const client = await createClient('token');
 
 console.log('Bot Connected:', client);
 
-for await (const event of client) {
-    if (event.type === 'message') {
-        await event.reply('Roar!');
+for await (const ctx of client) {
+    if (ctx.event === 'MESSAGE_CREATE') {
+		await ctx.reply('Roar! You said: '+ ctx.text);
     }
 }
 ```
 
 <!--## API Documentation
 Can be found [here](doc.md). Currently is hand-generated.-->
-
-## Short Term Checklist
-- [ ] `ClientGuild extends Guild` so that `guild.leave()` can happen for guilds the client is in.
-- [ ] Intercept requests to cache data objects.
 
 <!--## API Checklist
 See how far along the implementation is [here](CHECKLIST.md).-->

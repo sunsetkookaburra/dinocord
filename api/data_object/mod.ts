@@ -162,16 +162,10 @@ export interface GatewayPayload
 	/** Sequence number (for resume / heartbeast) */
 	s?: number,
 	/** Event Name */
-	t?: DispatchEvents
+	t?: DispatchEvent_All
 }
 
-/** Discord Gatewat Dispatch Events */
-type DispatchEvents =
-	'READY' |
-	'MESSAGE_CREATE' |
-	'GUILD_CREATE' ;
-
-export enum Intents {
+export enum Intent {
 	GUILDS					= 1 << 0,
 	GUILD_MEMBERS			= 1 << 1,
 	GUILD_BANS				= 1 << 2,
@@ -187,7 +181,29 @@ export enum Intents {
 	DIRECT_MESSAGES			= 1 << 12,
 	DIRECT_MESSAGE_REACTIONS= 1 << 13,
 	DIRECT_MESSAGE_TYPING	= 1 << 14,
+};
+
+interface DiscordIntentEvents {
+	GUILDS: 'GUILD_CREATE'|'GUILD_DELETE'|'GUILD_ROLE_CREATE'|'GUILD_ROLE_UPDATE'|'GUILD_ROLE_DELETE'|'CHANNEL_CREATE'|'CHANNEL_UPDATE'|'CHANNEL_DELETE'|'CHANNEL_PINS_UPDATE',
+	GUILD_MEMBERS: 'GUILD_MEMBER_ADD'|'GUILD_MEMBER_REMOVE'|'GUILD_MEMBER_UPDATE',
+	GUILD_BANS: 'GUILD_BAN_ADD'|'GUILD_BAN_REMOVE',
+	GUILD_EMOJIS: 'GUILD_EMOJIS_UPDATE',
+	GUILD_INTEGRATIONS: 'GUILD_INTEGRATIONS_UPDATE',
+	GUILD_WEBHOOKS: 'WEBHOOKS_UPDATE',
+	GUILD_INVITES: 'INVITE_CREATE'|'INVITE_DELETE',
+	GUILD_VOICE_STATES: 'VOICE_STATE_UPDATE',
+	GUILD_PRESENCES: 'PRESENCE_UPDATE',
+	GUILD_MESSAGES: 'MESSAGE_CREATE'|'MESSAGE_UPDATE'|'MESSAGE_DELETE',
+	GUILD_MESSAGE_REACTIONS: 'MESSAGE_REACTION_ADD'|'MESSAGE_REACTION_REMOVE'|'MESSAGE_REACTION_REMOVE_ALL'|'MESSAGE_REACTION_REMOVE_EMOJI',
+	GUILD_MESSAGE_TYPING: 'TYPING_START',
+	DIRECT_MESSAGES: 'CHANNEL_CREATE'|'CHANNEL_UPDATE'|'CHANNEL_DELETE'|'CHANNEL_PINS_UPDATE',
+	DIRECT_MESSAGE_REACTIONS: 'MESSAGE_REACTION_ADD'|'MESSAGE_REACTION_REMOVE'|'MESSAGE_REACTION_REMOVE_ALL'|'MESSAGE_REACTION_REMOVE_EMOJI',
+	DIRECT_MESSAGE_TYPING: 'TYPING_START',
 }
+
+export type DispatchEvent_Passthrough = 'GUILD_MEMBERS_CHUNK'|'MESSAGE_DELETE_BULK'|'USER_UPDATE'|'VOICE_SERVER_UPDATE';
+export type AvailableDispatchEvent<T extends (keyof DiscordIntentEvents)[]> = DiscordIntentEvents[keyof Pick<DiscordIntentEvents, T[number]>] | DispatchEvent_Passthrough;
+export type DispatchEvent_All = DiscordIntentEvents[keyof DiscordIntentEvents] | 'READY' | 'RESUMED' | 'RECONNECT' | 'INVALID_SESSION';
 
 export type PresenceStatus = 'online' | 'dnd' | 'idle' | 'invisible' | 'offline';
 

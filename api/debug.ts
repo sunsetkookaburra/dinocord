@@ -12,7 +12,7 @@ class DinocordError {
 }
 
 export function dinoLog(level: LoggingLevel, reason: string){
-    (Log as Record<string, any>)[level](reason);
+    (Log.getLogger("default") as any)[level](reason);
     if (level === 'critical') throw new DinocordError(level, reason)
 }
 
@@ -21,7 +21,9 @@ export async function initLogging(level: LoggingLevel){
 	await Log.setup({
 		handlers: {
 			default: new Log.handlers.ConsoleHandler("DEBUG", {
-				formatter: '[{levelName}][Dinocord]{msg}'
+				formatter: r=>{
+					return `[${new Date().toISOString()}][${r.levelName}][Dinocord] ${r.msg}`;
+				}
 			})
 		},
 		loggers: {

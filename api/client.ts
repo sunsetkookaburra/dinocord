@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 
 import { User } from "./user.ts";
-import { UserObject, Snowflake, ActivityType, PresenceStatus, Presence, Activity } from "./data_object/mod.ts";
+import { DispatchEvent_All, UserObject, Snowflake, ActivityType, PresenceStatus, Presence, Activity } from "./data_object/mod.ts";
 import { ClientContext, DiscordHTTPClient, DiscordWSClient } from "./net.ts";
 import { Message } from "./message.ts";
 import { Guild } from "./guild.ts";
@@ -19,10 +19,13 @@ interface ClientOptions extends Record<string, any> {
 
 // will be or'd with other options, like channel update etc
 // need a published list
-type ClientEvent = 
-	(Message & { readonly type: 'message' }) |
-	(User & { readonly type: 'user' }) |
-	(Guild & { readonly type: 'guild' }) ;
+
+type ClientEvent<O, T extends DispatchEvent_All> = O & { event: T };
+
+function CreateClientEvent<O, T extends DispatchEvent_All>(o: O, t: T){
+	(o as any)['event'] = t;
+	return o as ClientEvent<O, T>;
+}
 
 class Client extends User {
 	// will have a guilds property
@@ -36,15 +39,9 @@ class Client extends User {
 			// switch event name.
 			switch(p.t){
 				case 'GUILD_CREATE':
-					
 					break;
 				case 'MESSAGE_CREATE':
-					yield {
-						'type': 'message',
-						'id': '212' as Snowflake,
-						'text': p.d['content'],
-						async reply(){}
-					} as ClientEvent
+					if (p.d.author?.id !== this.id) yield CreateClientEvent(new Message(this.ctx, p.d), "MESSAGE_CREATE");
 					break;
 				default:
 					console.log('Unhandled DISPATCH::', p.t);
@@ -52,6 +49,7 @@ class Client extends User {
 			}
 		}
 	}
+	//createObject<T extends 'message'>(type: T, init: any){}
 }
 
 // this should handle creation of client context, not another function
@@ -113,3 +111,5 @@ export async function createClient( token: string, options?: ClientOptions ) {
 	const client = new Client(userInit, ctx);
 	return client;
 }
+
+

@@ -101,6 +101,7 @@ export class AsyncServiceQueue
 				// access onServed code to run ([i][1]), then free up after completion.
 				this.customers[i][1]().then(v=>{
 					// so [i][0] refer's to their requested services
+					if (!this.customers[i]) return;
 					this.free(this.customers[i][0]);
 					// return the result
 					this.customers[i][2].resolve(v);

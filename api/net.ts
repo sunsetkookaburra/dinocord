@@ -62,7 +62,7 @@ export class DiscordHTTPClient
 				// return unmodified url if there are no substitutions to be made
 				if( substitutions === undefined ) return url;
 				for( let k of Object.keys(substitutions) ){
-					url = url.replace(':'+k, Deno.inspect(substitutions[k]));
+					url = url.replace(k, Deno.inspect(substitutions[k]));
 				}
 				return url;
 			})()
@@ -70,12 +70,14 @@ export class DiscordHTTPClient
 	}
 	async request( method: HTTPMethod, path: string, options?: RequestOptions ){
 		// format path for api
-		let route = DiscordHTTPClient.route(path, options?options.substitutions:undefined);
+		let route = DiscordHTTPClient.route(path, options?.substitutions);
 		// check bucket
 		for( let [key, bucket] of this.buckets ){
 			// if bucket low, wait until refill
-			if( path === bucket.path && bucket.remaining < 1 ){
+			//console.log(path, bucket);
+			if( path === bucket.path && bucket.remaining < 2 ){
 				await waitableDate(new Date(bucket.reset));
+				break;
 			}
 			else if(path === bucket.path) {
 				bucket.remaining--;
@@ -88,7 +90,7 @@ export class DiscordHTTPClient
 			if( options === undefined){}
 			else if( options.type === 'json' ){
 				this.headers.set('Content-Type', 'application/json');
-				body = JSON.stringify(body);
+				body = JSON.stringify(options.body);
 			}
 			/* IMPLEMENT FOR FILES
 			else if( options.type === 'form' ){
@@ -129,6 +131,7 @@ export class DiscordHTTPClient
 				});
 			}
 		}
+		dinoLog('debug', 'Sent HTTP Request: '+method+' '+route.url);
 		return result;
 	}
 	// Returns result as an object.
