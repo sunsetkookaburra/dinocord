@@ -33,4 +33,9 @@ caching needs to maintain the original object, and just update properties
 
 */
 
-export { createClient } from './api/client.ts';
+export { createClient, ClientOptions } from "./api/client.ts";
+export {
+  PresenceStatus,
+  ActivityType,
+  ActivityTypes,
+} from "./api/data_object/mod.ts";
