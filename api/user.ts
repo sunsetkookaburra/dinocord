@@ -18,7 +18,7 @@ export class User {
     this.tag = userInit.discriminator;
   }
 
-  private [Deno.symbols.customInspect]() {
+  private [Deno.customInspect]() {
     return this.name + "#" + this.tag;
   }
 
@@ -26,7 +26,7 @@ export class User {
     if (
       hint === "string" || hint === "default"
     ) {
-      return this[Deno.symbols.customInspect]();
+      return this[Deno.customInspect]();
     }
     return null;
   }

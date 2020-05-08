@@ -276,7 +276,7 @@ export class DiscordWSClient {
     //this.readyEventReceived = deferred<GatewayPayload>();
     this.discordEndpointQueue.run();
     this.socket = await connectWebSocket(this.gateway);
-    this.listener = this.socket.receive();
+    this.listener = this.socket[Symbol.asyncIterator]();
     let firstMsg = JSON.parse(
       (await this.listener.next()).value,
     ) as GatewayPayload;

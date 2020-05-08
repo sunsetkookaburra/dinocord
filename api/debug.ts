@@ -12,7 +12,7 @@ export type LoggingLevel =
 class DinocordError {
   constructor(public level: LoggingLevel, public reason: string) {
   }
-  [Deno.symbols.customInspect]() {
+  [Deno.customInspect]() {
     return "DinocordError[" + this.level + "]: " + this.reason;
   }
 }
@@ -23,7 +23,7 @@ export function dinoLog(level: LoggingLevel, reason: string) {
 }
 
 export async function initLogging(level: LoggingLevel) {
-  level = level.toUpperCase() as LoggingLevel;
+  const logLevel = level.toUpperCase() as keyof typeof Log.LogLevels;
   await Log.setup({
     handlers: {
       default: new Log.handlers.ConsoleHandler("DEBUG", {
@@ -35,7 +35,7 @@ export async function initLogging(level: LoggingLevel) {
     },
     loggers: {
       default: {
-        level: level,
+        level: logLevel,
         handlers: ["default"],
       },
     },

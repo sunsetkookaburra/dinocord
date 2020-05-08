@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Oliver Lenehan. All rights reserved. MIT license.
 import { createClient } from "./mod.ts";
 
-const client = await createClient(Deno.env("TOKEN")!, {
+const client = await createClient(Deno.env.get("TOKEN")!, {
   logLevel: "debug",
 });
 
