@@ -4,12 +4,12 @@ export {
 	WebSocket,
 	isWebSocketCloseEvent,
 	WebSocketEvent,
-} from "https://deno.land/std@v1.0.0-rc1/ws/mod.ts";
+} from "https://deno.land/std@v0.50.0/ws/mod.ts";
 export {
 	deferred,
 	Deferred,
-} from "https://deno.land/std@v1.0.0-rc1/util/async.ts";
-import * as Log from "https://deno.land/std@v1.0.0-rc1/log/mod.ts";
+} from "https://deno.land/std@v0.50.0/async/mod.ts";
+import * as Log from "https://deno.land/std@v0.50.0/log/mod.ts";
 export { Log };
 
 /** Library related metadata */
