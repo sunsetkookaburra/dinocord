@@ -264,7 +264,7 @@ export class DiscordWSClient {
 				op: GatewayOpcode.HEARTBEAT,
 				d: this.sequenceID,
 			});
-		}, this.gatewayClose); // bind to allow using class vars. this will break the websocket on a disconnection
+		}); // bind to allow using class vars. this will break the websocket on a disconnection
 		dinoLog("debug", "[WSClient] Created.");
 	}
 	sendPayload(p: GatewayPayload) {
@@ -355,6 +355,10 @@ export class DiscordWSClient {
 			} else if (isWebSocketCloseEvent(msg)) {
 				// log closure of socket
 				dinoLog("info", `[WSClient@${this.sessionID}] Socket closed.`);
+				this.close();
+				if (msg.code === 4004){
+					throw "Authentication Failed: Your token may be invalid."
+				}
 				break;
 			}
 		}
@@ -364,11 +368,11 @@ export class DiscordWSClient {
 			"debug",
 			`[WSClient@${this.sessionID}] WSClient->gatewayClose(${code})`,
 		);
-		this.discordEndpointQueue.exit();
-		this.socket!.close(code);
+		this.socket?.close(code);
 	}
 	public close() {
-		this.gatewayClose();
+		this.heart.stop();
+		this.discordEndpointQueue.exit();
 	}
 }
 

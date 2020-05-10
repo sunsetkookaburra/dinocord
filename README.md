@@ -3,6 +3,11 @@
 ## WARNING!
 This library is not ready; do not use it at all in production. Any names are almost certainly going to change.
 
+While dinocord is still in early development, run your program as such:
+```
+deno run --allow-net --reload myBot.ts
+```
+
 ## About
 A Discord API Library for Deno
 
