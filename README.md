@@ -4,7 +4,7 @@
 This repo was a small hobby project at the start of 2020 to investigate the
 workings of Discord's API; dinocord is not being actively developed.
 Please look to, and give your support to, a module that being actively developed:
-- Discordeno https://github.com/Skillz4Killz/Discordeno
+- Discordeno https://github.com/discordeno/discordeno
 
 ## About
 A small hobby project to try and make a Discord API library for deno.
